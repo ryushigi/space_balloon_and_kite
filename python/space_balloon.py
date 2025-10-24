@@ -1164,11 +1164,6 @@ class SensorAnalyzerImpl:
                     if self.__parameterDic["mp4_en"]:
                         processList.append(
                             multiprocessing.Process(
-                                # target = mai.doMovieAnalyzerImpl(
-                                #     False ,
-                                #     self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                #     None
-                                # )
                                 target = mai.doMovieAnalyzerImpl ,
                                 args   = (
                                     False ,
@@ -1192,11 +1187,6 @@ class SensorAnalyzerImpl:
                             iai.doI2CAnalyzerImpl()
                             processList.append(
                                 multiprocessing.Process(
-                                    # target= mai.doMovieAnalyzerImpl(
-                                    #     self.__parameterDic["frame_sync_en"] ,
-                                    #     self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                    #     iai.getDataFrame()
-                                    # )
                                     target = mai.doMovieAnalyzerImpl ,
                                     args   = (
                                         self.__parameterDic["frame_sync_en"] ,
@@ -1848,20 +1838,20 @@ class MovieAnalyzerImpl:
             if movieFileName is not None:
                 if self.__parameterDic["gpu_en"]:
                     print("[Info] Convert from H.264 to MP4 using GPU.")
-                    print("[Info] ffmpeg -framerate " + str( self.__parameterDic["framerate"]) + " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName + " -c:v h264_nvenc -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
+                    print("[Info] ffmpeg -framerate " + str( self.__parameterDic["framerate"]) + " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName + " -c:v h264_nvenc -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
                     subprocess.run(
                         "ffmpeg -framerate " + str( self.__parameterDic["framerate"]) +
                         " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName +
-                        " -c:v h264_nvenc -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
+                        " -c:v h264_nvenc -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
                         shell=True , capture_output=True , text=True
                     )
                 else:
                     print("[Info] Convert from H.264 to MP4.")
                     print("[Info] ffmpeg -y -framerate " + str( self.__parameterDic["framerate"]) + " -i " + movieFileName +
-                          " -c:v libx264 -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
+                          " -c:v libx264 -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
                     subprocess.run(
                         "ffmpeg -y -framerate " + str( self.__parameterDic["framerate"]) + " -i " + movieFileName +
-                        " -c:v libx264 -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
+                        " -c:v libx264 -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
                         shell=True , capture_output=True , text=True
                     )
             else:
@@ -1906,11 +1896,11 @@ class MovieAnalyzerImpl:
             if self.__parameterDic["gpu_en"]:
                 print(
                     "[Info] ffmpeg -framerate " + str(framerate) +
-                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset fast -y " + movieFileName
+                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset slow -y " + movieFileName
                 )
                 subprocess.run(
                     "ffmpeg -framerate " + str(framerate) +
-                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset fast -y " + movieFileName ,
+                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset slow -y " + movieFileName ,
                     shell          = True ,
                     capture_output = True ,
                     text           = True
