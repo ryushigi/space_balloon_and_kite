@@ -1326,14 +1326,24 @@ class SensorAnalyzerImpl:
                 dataFrame = pandas.read_csv( self.__parameterDic["input_dir"] + "/" + "movie.csv" )
                 dataFrame = dataFrame.replace("", pandas.NA)
                 dataFrame = dataFrame.ffill()
-                if self.__parameterDic["gps_en"] :
-                    gai = GPSAnalyzerImpl(
-                        self.__parameterDic["input_dir"]        ,
-                        dataFrame                               ,
-                        self.__parameterDic["map_animation_en"]
-                    )
-                    # GPSデータを地図、GoogleMapデータで可視化できるようにする
-                    processList.append( multiprocessing.Process( target=gai.doGPSAnalyzerImpl ) )
+
+                iai = I2CAnalyzerImpl( self.__parameterDic , dataFrame )
+                iai.doI2CAnalyzerImpl()
+                dataFrame = iai.getDataFrame()
+
+                if self.__parameterDic["ivk172_en"] or self.__parameterDic["neom8n_en"] :
+                    if self.__parameterDic["bme280_en"]:
+                        gai = GPSAnalyzerImpl(
+                            self.__parameterDic["input_dir"]        ,
+                            dataFrame                               ,
+                            self.__parameterDic["map_animation_en"] ,
+                            self.__parameterDic["ivk172_en"]        ,
+                            self.__parameterDic["neom8n_en"]
+                        )
+                        # GPSデータを地図、GoogleMapデータで可視化できるようにする
+                        processList.append( multiprocessing.Process( target=gai.doGPSAnalyzerImpl ) )
+                    else:
+                        print("[Warn] GPS data conversion requires BME280 measurement data. Enable the BME280 option to activate this feature.")
 
                 # 動画データが存在する場合
                 if os.path.isfile( self.__parameterDic["input_dir"] + "/" + "movie.h264" ):
@@ -1358,18 +1368,13 @@ class SensorAnalyzerImpl:
                                 os.path.isfile( self.__parameterDic["input_dir"] + "/" + "movie.csv"  )
                         ):
 
-                            iai = I2CAnalyzerImpl( self.__parameterDic , dataFrame )
-                            
-                            # 動画のcsvと他センサーデータのcsvをマージする
-                            # マージ後データを動画データに組み込む
-                            iai.doI2CAnalyzerImpl()
                             processList.append(
                                 multiprocessing.Process(
                                     target = mai.doMovieAnalyzerImpl ,
                                     args   = (
                                         self.__parameterDic["frame_sync_en"] ,
                                         self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                        iai.getDataFrame()
+                                        dataFrame
                                     )
                                 )
                             )
@@ -1907,10 +1912,12 @@ class I2CAnalyzerImpl:
 ########################################################################################
 class GPSAnalyzerImpl:
 
-    def __init__(self , output_dir , dataFrame , animation_en ):
+    def __init__(self , output_dir , dataFrame , animation_en , ivk172_en , neom8n_en ):
         self.__output_dir   = output_dir
         self.__dataFrame    = dataFrame
         self.__animation_en = animation_en
+        self.__ivk172_en    = ivk172_en
+        self.__neom8n_en    = neom8n_en
 
     def __generate_map_html( self ):
         print("[Info] Start the __generate_map_html function.")
@@ -1928,32 +1935,60 @@ class GPSAnalyzerImpl:
             axis=1
         )
         if self.__animation_en:
-            features = []
-            for _, row in self.__dataFrame.iterrows():
-                features.append(
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["ivk172_longitude"], row["ivk172_latitude"]], },
-                      "properties": {
-                          "time"      : row["iso_8601_time"]                      ,
-                          "duration"  : 1000                                      ,
-                          "popup"     : f"{row['ivk172_latitude']} , {row['ivk172_longitude']}" ,
-                          "icon"      : "circle"                                  ,
-                          "iconstyle" : {
-                              "fillColor"   :"blue" ,
-                              "fillOpacity" : 0.8   ,
-                              "stroke"      :"true" ,
-                              "radius"      : 6
-                          },
-                      }
-                     })
+            if self.__ivk172_en:
+                features = []
+                for _, row in self.__dataFrame.iterrows():
+                    features.append(
+                        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["ivk172_longitude"], row["ivk172_latitude"]], },
+                          "properties": {
+                              "time"      : row["iso_8601_time"]                      ,
+                              "duration"  : 1000                                      ,
+                              "popup"     : f"{row['ivk172_latitude']} , {row['ivk172_longitude']}" ,
+                              "icon"      : "circle"                                  ,
+                              "iconstyle" : {
+                                  "fillColor"   :"blue" ,
+                                  "fillOpacity" : 0.8   ,
+                                  "stroke"      :"true" ,
+                                  "radius"      : 6
+                              },
+                          }
+                         })
 
-            geojson    = { "type": "FeatureCollection", "features": features, }
-            folium_map = folium.Map(
-                location=[
-                    self.__dataFrame["ivk172_latitude"].iloc[0] ,
-                    self.__dataFrame["ivk172_longitude"].iloc[0]
-                ],
-                zoom_start=10
-            )
+                geojson    = { "type": "FeatureCollection", "features": features, }
+                folium_map = folium.Map(
+                    location=[
+                        self.__dataFrame["ivk172_latitude"].iloc[0] ,
+                        self.__dataFrame["ivk172_longitude"].iloc[0]
+                    ],
+                    zoom_start=10
+                )
+            elif self.__neom8n_en:
+                features = []
+                for _, row in self.__dataFrame.iterrows():
+                    features.append(
+                        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["neom8n_longitude"], row["neom8n_latitude"]], },
+                          "properties": {
+                              "time"      : row["iso_8601_time"]                      ,
+                              "duration"  : 1000                                      ,
+                              "popup"     : f"{row['neom8n_latitude']} , {row['neom8n_longitude']}" ,
+                              "icon"      : "circle"                                  ,
+                              "iconstyle" : {
+                                  "fillColor"   :"blue" ,
+                                  "fillOpacity" : 0.8   ,
+                                  "stroke"      :"true" ,
+                                  "radius"      : 6
+                              },
+                          }
+                         })
+                geojson    = { "type": "FeatureCollection", "features": features, }
+                folium_map = folium.Map(
+                    location=[
+                        self.__dataFrame["neom8n_latitude"].iloc[0] ,
+                        self.__dataFrame["neom8n_longitude"].iloc[0]
+                    ],
+                    zoom_start=10
+                )
+                
             TimestampedGeoJson(
                 geojson                  ,
                 period         = "PT2S"  ,
@@ -1965,28 +2000,44 @@ class GPSAnalyzerImpl:
             ).add_to(folium_map)
         else:
             folium_figure = folium.Figure(width=1500, height=700)
-            folium_map    = folium.Map(
-                location=[
-                    self.__dataFrame["ivk172_latitude"] .iloc[0] ,
-                    self.__dataFrame["ivk172_longitude"].iloc[0]
-                ] ,
-                zoom_start=4.5
-            ).add_to( folium_figure )
-            folium.PolyLine(
-                self.__dataFrame[["ivk172_latitude", "ivk172_longitude"]].values.tolist(),
-                color="blue",
-                weight=3,
-                opacity=0.8
-            ).add_to(folium_map)
-            # for i in range( self.__dataFrame.count()["latitude"] ):
-            #     folium.Marker( location=[ self.__dataFrame.loc[ i , "latitude" ] , self.__dataFrame.loc[ i , "longitude" ] ] ).add_to( folium_map )
-        #folium_map.save( self.__csvFileName + ".html" )
+            if self.__ivk172_en:            
+                folium_map    = folium.Map(
+                    location=[
+                        self.__dataFrame["ivk172_latitude"] .iloc[0] ,
+                        self.__dataFrame["ivk172_longitude"].iloc[0]
+                    ] ,
+                    zoom_start=4.5
+                ).add_to( folium_figure )
+                folium.PolyLine(
+                    self.__dataFrame[["ivk172_latitude", "ivk172_longitude"]].values.tolist(),
+                    color="blue",
+                    weight=3,
+                    opacity=0.8
+                ).add_to(folium_map)
+            elif self.__neom8n_en:
+                folium_map    = folium.Map(
+                    location=[
+                        self.__dataFrame["neom8n_latitude"] .iloc[0] ,
+                        self.__dataFrame["neom8n_longitude"].iloc[0]
+                    ] ,
+                    zoom_start=4.5
+                ).add_to( folium_figure )
+                folium.PolyLine(
+                    self.__dataFrame[["neom8n_latitude", "neom8n_longitude"]].values.tolist(),
+                    color="blue",
+                    weight=3,
+                    opacity=0.8
+                ).add_to(folium_map)
         folium_map.save(  self.__output_dir + "/map.html" )
 
     def __generate_map_kml( self ):
         print("[Info] Start the __generate_map_kml function.")
         self.__dataFrame                 = self.__dataFrame.reset_index()
-        tuple_B                          = [tuple(x) for x in self.__dataFrame[['ivk172_longitude','ivk172_latitude','ivk172_altitude']].values]
+        tuple_B = None
+        if self.__ivk172_en:
+            tuple_B                          = [tuple(x) for x in self.__dataFrame[['ivk172_longitude','ivk172_latitude','bme280_altitude']].values]
+        elif self.__neom8n_en:
+            tuple_B                          = [tuple(x) for x in self.__dataFrame[['neom8n_longitude','neom8n_latitude','bme280_altitude']].values]
         kml                              = simplekml.Kml(open=1)
         linestring                       = kml.newlinestring(name="A Sloped Line")
         linestring.coords                = tuple_B
@@ -1994,7 +2045,6 @@ class GPSAnalyzerImpl:
         linestring.extrude               = 0
         linestring.style.linestyle.width = 3
         linestring.style.linestyle.color = simplekml.Color.red
-        #kml.save( self.__csvFileName + ".kml" )
         kml.save(  self.__output_dir + "/map.kml" )
 
     def doGPSAnalyzerImpl( self ):
