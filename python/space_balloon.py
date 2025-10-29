@@ -26,6 +26,9 @@ try:
     from openpyxl.styles import PatternFill, Alignment
     from openpyxl.utils.dataframe import dataframe_to_rows
     from openpyxl.worksheet.table import Table, TableStyleInfo
+    from filterpy.kalman import KalmanFilter
+    from pykalman import KalmanFilter
+    from scipy.signal import savgol_filter
 except ImportError:
     print("[Warn] The libraries required for analyzing sensor data have not been imported.")
 
@@ -1760,15 +1763,15 @@ class I2CAnalyzerImpl:
             mx , my , mz = self.__apply_mag_calibration( rawmx , rawmy , rawmz , offset , soft_iron_matrix )
             accel_range = calib["accel_range"]
             gyro_range  = calib["gyro_range"]
-            accel_scale = 32768.0
-            if   accel_range == 250:
-                accel_scale = 131.0
-            elif accel_range == 500:
-                accel_scale = 65.5
-            elif accel_range == 1000:
-                accel_scale = 32.8
-            elif accel_range == 2000:
-                accel_scale = 16.4
+            accel_scale = 16384.0
+            if   accel_range == 2:
+                accel_scale = 16384.0
+            elif accel_range == 4:
+                accel_scale = 8192.0
+            elif accel_range == 8:
+                accel_scale = 4096.0
+            elif accel_range == 16:
+                accel_scale = 2048.0
             gyro_scale = 131.0
             if   gyro_range == 250:
                 gyro_scale = 131.0
@@ -1785,15 +1788,15 @@ class I2CAnalyzerImpl:
             gy = rawgy / gyro_scale
             gz = rawgz / gyro_scale
         else:
-            mx = rawmx
-            my = rawmy
-            mz = rawmz
-            ax = rawax / 32768.0
-            ay = raway / 32768.0
-            az = rawaz / 32768.0
+            ax = rawax / 16384.0
+            ay = raway / 16384.0
+            az = rawaz / 16384.0
             gx = rawgx / 131.0
             gy = rawgy / 131.0
             gz = rawgz / 131.0
+        mx = rawmx
+        my = rawmy 
+        mz = rawmz
         heading_rad = numpy.arctan2( my , mx )
         heading_deg = numpy.degrees( heading_rad )
         heading_deg = ( heading_deg + 360 ) % 360
@@ -1919,6 +1922,80 @@ class GPSAnalyzerImpl:
         self.__ivk172_en    = ivk172_en
         self.__neom8n_en    = neom8n_en
 
+    def __filter_gps( self ):
+        filter_gps = 0
+        if filter_gps == 1:
+            print("Kalman")
+            # NaN除去（必要に応じて）
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # 観測データを行列化
+            observations = self.__dataFrame[['neom8n_latitude', 'neom8n_longitude']].values
+            # カルマンフィルターの初期化
+            kf = KalmanFilter(
+                initial_state_mean=observations[0],
+                n_dim_obs=2,
+                transition_matrices=numpy.eye(2),      # 状態遷移（変化が緩やかと仮定）
+                observation_matrices=numpy.eye(2),     # 観測モデル（直接観測）
+                observation_covariance=numpy.eye(2) * 1e-6,  # 観測ノイズ
+                transition_covariance=numpy.eye(2) * 1e-6     # 状態変化ノイズ
+            )
+            # フィルタを適用
+            smoothed_state_means, _ = kf.smooth(observations)
+            # 結果をDataFrameに上書き
+            self.__dataFrame['neom8n_latitude'] = smoothed_state_means[:, 0]
+            self.__dataFrame['neom8n_longitude'] = smoothed_state_means[:, 1]
+        elif filter_gps == 2:
+            print("移動平均")
+            # ---- ウィンドウサイズ設定 ----
+            window_size = 5  # 平均を取る点数（奇数推奨）
+            # ---- 欠損値を除外 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- 移動平均の適用 ----
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].rolling(window=window_size, center=True).mean()
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].rolling(window=window_size, center=True).mean()
+            # ---- 端のNaNを補間 ----
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear')
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear', limit_direction='both')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear', limit_direction='both')
+        elif filter_gps == 3:
+            print("ガウシアン平滑化フィルタ")
+            # ---- 欠損値の除去 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- パラメータ設定 ----
+            window_size = 7   # 平滑化のウィンドウ幅（奇数を推奨）
+            sigma = 2.0       # ガウシアン分布の標準偏差
+            # ---- ガウシアン平滑化フィルタ ----
+            self.__dataFrame['neom8n_latitude'] = (
+                self.__dataFrame['neom8n_latitude']
+                .rolling(window=window_size, win_type='gaussian', center=True)
+                .mean(std=sigma)
+                .interpolate(method='linear')
+            )
+            self.__dataFrame['neom8n_longitude'] = (
+                self.__dataFrame['neom8n_longitude']
+                .rolling(window=window_size, win_type='gaussian', center=True)
+                .mean(std=sigma)
+                .interpolate(method='linear')
+            )
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear', limit_direction='both')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear', limit_direction='both')
+        elif filter_gps == 4:
+            print("サヴィツキー–ゴレイ平滑化フィルタ")
+            # ---- 欠損値の除去 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- パラメータ設定 ----
+            window_size = 7   # 平滑化ウィンドウ（奇数のみ）
+            polyorder = 2     # Savitzky-Golay の多項式次数（1〜3が一般的）
+            # ---- (3) サヴィツキー–ゴレイ平滑化フィルタ ----
+            # savgol_filter はウィンドウがデータより大きいとエラーになるため確認
+            if len(self.__dataFrame) >= window_size:
+                self.__dataFrame['neom8n_latitude'] = savgol_filter(self.__dataFrame['neom8n_latitude'], window_length=window_size, polyorder=polyorder)
+                self.__dataFrame['neom8n_longitude'] = savgol_filter(self.__dataFrame['neom8n_longitude'], window_length=window_size, polyorder=polyorder)
+            else:
+                self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude']
+                self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude']
+            
     def __generate_map_html( self ):
         print("[Info] Start the __generate_map_html function.")
         self.__dataFrame     = self.__dataFrame.reset_index()
@@ -2049,6 +2126,7 @@ class GPSAnalyzerImpl:
 
     def doGPSAnalyzerImpl( self ):
         print("[Info] Start the doGPSAnalyzerImpl function.")
+        self.__filter_gps()
         self.__generate_map_html()
         self.__generate_map_kml()
 
