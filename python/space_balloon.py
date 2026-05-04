@@ -26,6 +26,9 @@ try:
     from openpyxl.styles import PatternFill, Alignment
     from openpyxl.utils.dataframe import dataframe_to_rows
     from openpyxl.worksheet.table import Table, TableStyleInfo
+    from filterpy.kalman import KalmanFilter
+    from pykalman import KalmanFilter
+    from scipy.signal import savgol_filter
 except ImportError:
     print("[Warn] The libraries required for analyzing sensor data have not been imported.")
 
@@ -103,20 +106,10 @@ class SensorWrapper:
     icm20948_tmpRaw                = 0
     ivk172_latitude                = 0
     ivk172_longitude               = 0
-    ivk172_altitude                = 0
-    ivk172_altitude_units          = 0
-    ivk172_num_sats                = 0
-    ivk172_datestamp               = 0
-    ivk172_timestamp               = 0
-    ivk172_spd_over_grnd           = 0
-    ivk172_true_course             = 0
-    ivk172_true_track              = 0
-    ivk172_spd_over_grnd_kmph      = 0
-    ivk172_pdop                    = 0
-    ivk172_hdop                    = 0
-    ivk172_vdop                    = 0
-    ivk172_num_sv_in_view          = 0
-    ivk172_frame                   = 0
+    ivk172_end_time                = 0
+    neom8n_latitude                = 0
+    neom8n_longitude               = 0
+    neom8n_end_time                = 0
     powermonitor_start_time        = 0
     powermonitor_end_time          = 0
     powermonitor_voltage           = 0
@@ -131,7 +124,7 @@ class SensorWrapper:
     powermonitor_disk_total_B      = 0
     powermonitor_disk_free_B       = 0
     powermonitor_disk_percent_used = 0
-
+    
     def __init__( self , argv ):
         print("[Info] Create an instance of the SensorWrapper class.")
         print("[Info] Current nice value is " + str(os.nice(0)) + ".")
@@ -145,11 +138,11 @@ class SensorWrapper:
         self.__bme280_bus            = None
         self.__mpu6050_bus           = None
         self.__camera_fa             = None
-        self.__bme280_fa             = None
-        self.__mpu6050_fa            = None
-        self.__icm20948_fa           = None
-        self.__powermonitor_fa       = None
-        self.__gps_fa                = None
+        # self.__bme280_fa             = None
+        # self.__mpu6050_fa            = None
+        # self.__icm20948_fa           = None
+        # self.__powermonitor_fa       = None
+        # self.__gps_fa                = None
         self.__mode                  = None
         self.__json_output_dir       = None
         self.__csv_output_dir        = None
@@ -157,7 +150,9 @@ class SensorWrapper:
         self.__icm20948_i2cbus       = None
         self.__bme280_i2cbus         = None
         self.__mpu6050_i2cbus        = None
-        self.__gps_en                = None
+        # self.__gps_en                = None
+        self.__ivk172_en             = None
+        self.__neom8n_en             = None
         self.__powermonitor_en       = None
         self.__bme280_en             = None
         self.__mpu6050_en            = None
@@ -168,15 +163,19 @@ class SensorWrapper:
         self.__width                 = None
         self.__height                = None
         self.__csvbuffer             = None
-        self.__gps_port              = None
+        #self.__gps_port              = None # 2025/10/25
+        self.__ivk172_port           = None
+        self.__neom8n_port           = None
         self.__bme280_addr           = None
         self.__mpu6050_addr          = None
         self.__icm20948_addr         = None
-        self.__gps_csv               = None
-        self.__bme280_csv            = None
-        self.__mpu6050_csv           = None
-        self.__icm20948_csv          = None
-        self.__gps_interval          = None
+        # self.__gps_csv               = None
+        # self.__bme280_csv            = None
+        # self.__mpu6050_csv           = None
+        # self.__icm20948_csv          = None
+        # self.__gps_interval          = None
+        self.__neom8n_interval       = None
+        self.__ivk172_interval       = None
         self.__bme280_interval       = None
         self.__analyzerDic           = {}
 
@@ -185,11 +184,11 @@ class SensorWrapper:
         self.__picamera2.stop_encoder()
         self.__picamera2.stop()
         self.__camera_fa       .close()
-        self.__bme280_en       and self.__bme280_fa       .close()
-        self.__mpu6050_en      and self.__mpu6050_fa      .close()
-        self.__icm20948_en     and self.__icm20948_fa     .close()
-        self.__powermonitor_en and self.__powermonitor_fa .close()
-        self.__gps_en          and self.__gps_fa          .close()
+        # self.__bme280_en       and self.__bme280_fa       .close()
+        # self.__mpu6050_en      and self.__mpu6050_fa      .close()
+        # self.__icm20948_en     and self.__icm20948_fa     .close()
+        # self.__powermonitor_en and self.__powermonitor_fa .close()
+        # self.__gps_en          and self.__gps_fa          .close()
         self.__bme280_bus      .close()
         self.__mpu6050_bus     .close()
         SensorWrapper.camera_module_ready = True
@@ -232,15 +231,21 @@ class SensorWrapper:
         parser.add_argument( '--width'                 , default="1920"                      , help="" )
         parser.add_argument( '--height'                , default="1080"                      , help="" )
         parser.add_argument( '--csvbuffer'             , default="512"                       , help="" )
-        parser.add_argument( '--gps_port'              , default="/dev/ttyACM0"              , help="" )
-        parser.add_argument( '--gps_interval'          , default="5.0"                       , help="" )
+        # parser.add_argument( '--gps_port'              , default="/dev/ttyACM0"              , help="" ) # 2025/10/25
+        # parser.add_argument( '--gps_interval'          , default="5.0"                       , help="" ) # 2025/10/25
+        parser.add_argument( '--ivk172_port'           , default="/dev/ttyACM0"              , help="" )
+        parser.add_argument( '--ivk172_interval'       , default="5.0"                       , help="" )
+        parser.add_argument( '--neom8n_port'           , default="/dev/serial0"              , help="" )
+        parser.add_argument( '--neom8n_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--bme280_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--bme280_addr'           , default="0x76"                      , help="" )
         parser.add_argument( '--mpu6050_addr'          , default="0x68"                      , help="" )
         parser.add_argument( '--icm20948_addr'         , default="0x68"                      , help="" )
         #############################################################################################
         # Sensor Acquisition and Data Analysis Mode Options
-        parser.add_argument( '--gps'                   , default=False , action='store_true' , help="" )
+        #parser.add_argument( '--gps'                   , default=False , action='store_true' , help="" ) # 2025/10/25
+        parser.add_argument( '--ivk172'                , default=False , action='store_true' , help="" )
+        parser.add_argument( '--neom8n'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--bme280'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--mpu6050'               , default=False , action='store_true' , help="" )
         parser.add_argument( '--icm20948'              , default=False , action='store_true' , help="" )
@@ -264,7 +269,9 @@ class SensorWrapper:
             self.__json_output_dir                    =         args.json_output_dir
             self.__csv_output_dir                     =         args.csv_output_dir
             self.__movie_output_dir                   =         args.movie_output_dir
-            self.__gps_en                             = int   ( args.gps                )
+            #self.__gps_en                             = int   ( args.gps                ) # 2025/10/25
+            self.__ivk172_en                          = int   ( args.ivk172             )
+            self.__neom8n_en                          = int   ( args.neom8n             )
             self.__bme280_en                          = int   ( args.bme280             )
             self.__mpu6050_en                         = int   ( args.mpu6050            )
             self.__icm20948_en                        = int   ( args.icm20948           )
@@ -274,17 +281,23 @@ class SensorWrapper:
             self.__mpu6050_i2cbus                     = int   ( args.mpu6050_i2cbus     )
             self.__framerate                          = int   ( args.framerate          )
             self.__framebuffer                        = int   ( args.framebuffer        )
-            self.__gps_interval                       = float ( args.gps_interval       )
+            # self.__gps_interval                       = float ( args.gps_interval       ) # 2025/10/25
+            self.__ivk172_interval                    = float ( args.ivk172_interval    )
+            self.__neom8n_interval                    = float ( args.neom8n_interval    )
             self.__bme280_interval                    = float ( args.bme280_interval    )
             self.__bitrate                            = int   ( args.bitrate            )
             self.__width                              = int   ( args.width              )
             self.__height                             = int   ( args.height             )
             self.__csvbuffer                          = int   ( args.csvbuffer          )
-            self.__gps_port                           =         args.gps_port
+            #self.__gps_port                           =         args.gps_port # 2025/10/25
+            self.__ivk172_port                        =         args.ivk172_port
+            self.__neom8n_port                        =         args.neom8n_port
             self.__bme280_addr                        = int   ( args.bme280_addr   , 16 )
             self.__mpu6050_addr                       = int   ( args.mpu6050_addr  , 16 )
             self.__icm20948_addr                      = int   ( args.icm20948_addr , 16 )
-            self.__analyzerDic["gps_en"]              = self.__gps_en
+            # self.__analyzerDic["gps_en"]              = self.__gps_en # 2025/10/25
+            self.__analyzerDic["ivk172_en"]           = self.__ivk172_en
+            self.__analyzerDic["neom8n_en"]           = self.__neom8n_en
             self.__analyzerDic["bme280_en"]           = self.__bme280_en
             self.__analyzerDic["mpu6050_en"]          = self.__mpu6050_en
             self.__analyzerDic["icm20948_en"]         = self.__icm20948_en
@@ -314,7 +327,6 @@ class SensorWrapper:
         os.makedirs( movie_output_timestamp_dir , exist_ok=True )
         cameraCsvFile       = csv_output_timestamp_dir   + "/movie.csv"
         movieFileName       = movie_output_timestamp_dir + "/movie.h264"
-
         if self.__bme280_i2cbus == self.__mpu6050_i2cbus:
             self.__bme280_bus   = smbus2.SMBus( self.__bme280_i2cbus  )
             self.__mpu6050_bus  = self.__bme280_bus
@@ -371,20 +383,8 @@ class SensorWrapper:
                 'icm20948_tmpRaw'               ,
                 'ivk172_latitude'               ,
                 'ivk172_longitude'              ,
-                'ivk172_altitude'               ,
-                'ivk172_altitude_units'         ,
-                'ivk172_num_sats'               ,
-                'ivk172_datestamp'              ,
-                'ivk172_timestamp'              ,
-                'ivk172_spd_over_grnd'          ,
-                'ivk172_true_course'            ,
-                'ivk172_true_track'             ,
-                'ivk172_spd_over_grnd_kmph'     ,
-                'ivk172_pdop'                   ,
-                'ivk172_hdop'                   ,
-                'ivk172_vdop'                   ,
-                'ivk172_num_sv_in_view'         ,
-                'ivk172_frame'                  ,
+                'neom8n_latitude'               ,
+                'neom8n_longitude'              ,
                 'powermonitor_start_time'       ,
                 'powermonitor_end_time'         ,
                 'powermonitor_voltage'          ,
@@ -406,27 +406,27 @@ class SensorWrapper:
 
         #######################################################
         # Camera Module Setting
-       
         # setting camera configuration
-        self.__picamera2     = Picamera2()
-        # setting H264 encoder
-        encoder = H264Encoder( bitrate=self.__bitrate )
-        framerate_microsec   = int( 1.0/self.__framerate*1_000_000 ) # ex) 30fps = 1/30s = 33333μs
-        config               = self.__picamera2.create_video_configuration(
-            buffer_count = self.__framebuffer                                                              ,
-            main         = { "format"             : "YUV420" , "size" : ( self.__width , self.__height ) } ,
-            controls     = { "FrameDurationLimits": ( framerate_microsec , framerate_microsec ) }
-        )
-        self.__picamera2.configure( config )
-        ####################################################### 
+        if self.__mode == 0:
+            self.__picamera2     = Picamera2()
+            # setting H264 encoder
+            encoder = H264Encoder( bitrate=self.__bitrate )
+            framerate_microsec   = int( 1.0/self.__framerate*1_000_000 ) # ex) 30fps = 1/30s = 33333μs
+            config               = self.__picamera2.create_video_configuration(
+                buffer_count = self.__framebuffer                                                              ,
+                main         = { "format"             : "YUV420" , "size" : ( self.__width , self.__height ) } ,
+                controls     = { "FrameDurationLimits": ( framerate_microsec , framerate_microsec ) }
+            )
+            self.__picamera2.configure( config )
+            ####################################################### 
         
-        self.__cameraModuleImpl = CameraModuleImpl(
-            self.__picamera2  ,
-            encoder           ,
-            cameraCsvFile     ,
-            self.__camera_fa  ,
-            movieFileName
-        )
+            self.__cameraModuleImpl = CameraModuleImpl(
+                self.__picamera2  ,
+                encoder           ,
+                cameraCsvFile     ,
+                self.__camera_fa  ,
+                movieFileName
+            )
         #########################################################################
         if self.__icm20948_en :
             print("[Info] Activate the ICM-20948.")
@@ -440,13 +440,25 @@ class SensorWrapper:
             print("[Info] Activate the MPU6050.")
             self.__mpu6050Impl = MPU6050Impl( self.__mpu6050_bus , self.__mpu6050_addr )
         #########################################################################
-        if self.__gps_en :
+        # if self.__gps_en :
+        #     print("[Info] Activate the IVK172 G-Mouse USB GPS.")
+        #     self.__gpsModuleImpl = GPSModuleImpl( self.__gps_port , self.__gps_interval )
+        #########################################################################
+        if self.__ivk172_en :
             print("[Info] Activate the IVK172 G-Mouse USB GPS.")
-            self.__gpsModuleImpl = GPSModuleImpl( self.__gps_port , self.__gps_interval )
+            self.__ivk172Impl = IVK172Impl( self.__ivk172_port , self.__ivk172_interval )
+        #########################################################################
+        if self.__neom8n_en :
+            print("[Info] Activate the NEO M8N GPS.")
+            self.__neom8nImpl = NEOM8NImpl( self.__neom8n_port , self.__neom8n_interval )
         #########################################################################
         if self.__powermonitor_en :
             print("[Info] Activate the PowerMonitor.")
             self.__powermonitorImpl = PowerMonitorImpl()
+        #########################################################################
+        if self.__mode == 4:
+            print("[Info] Activate the Dummy Camra.")
+            self.__dummyImpl = DummyImpl( cameraCsvFile , self.__camera_fa )
         #########################################################################
 
     def doSensorWrapper(self):
@@ -460,7 +472,9 @@ class SensorWrapper:
             threadList = []
             try:
                 threadList.append( threading.Thread(                            target=self.__cameraModuleImpl.doCameraModuleImpl ) )
-                self.__gps_en          and threadList.append( threading.Thread( target=self.__gpsModuleImpl   .doGpsModuleImpl    ) )
+                #self.__gps_en          and threadList.append( threading.Thread( target=self.__gpsModuleImpl   .doGpsModuleImpl    ) ) # 2025/10/25
+                self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
+                self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
                 self.__bme280_en       and threadList.append( threading.Thread( target=self.__bme280Impl      .doBME280Impl       ) )
                 self.__mpu6050_en      and threadList.append( threading.Thread( target=self.__mpu6050Impl     .doMPU6050Impl      ) )
                 self.__icm20948_en     and threadList.append( threading.Thread( target=self.__icm20948Impl    .doIcm20948Impl     ) )
@@ -487,6 +501,26 @@ class SensorWrapper:
             print("[Info] Start the BME280 calibration mode.")
             cii = CalibrationBME280Impl( self.__json_output_dir , self.__bme280_addr , self.__bme280_i2cbus )
             cii.doCalibrationBME280Impl()
+        #######################################################################
+        if self.__mode == 4:
+            print("[Info] It operates in sensor data output mode. (Camera is dummy)")
+            self.__setup_sensors()
+            threadList = []
+            try:
+                threadList.append(                            threading.Thread( target=self.__dummyImpl.doDummyImpl               ) )
+                self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
+                self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
+                self.__bme280_en       and threadList.append( threading.Thread( target=self.__bme280Impl      .doBME280Impl       ) )
+                self.__mpu6050_en      and threadList.append( threading.Thread( target=self.__mpu6050Impl     .doMPU6050Impl      ) )
+                self.__icm20948_en     and threadList.append( threading.Thread( target=self.__icm20948Impl    .doIcm20948Impl     ) )
+                self.__powermonitor_en and threadList.append( threading.Thread( target=self.__powermonitorImpl.doPowerMonitorImpl ) )
+                SensorWrapper.running.set()
+                for singleThread in threadList:
+                    singleThread.start()
+                for singleThread in threadList:
+                    singleThread.join()
+            except Exception as e:
+                print(e)
         #######################################################################
 
 ########################################################################
@@ -896,67 +930,80 @@ class ICM20948Impl:
             writer_thread.join()        
                     
 ########################################################################
-class GPSModuleImpl:
+class IVK172Impl:
 
     def __init__( self , port , interval ):
-        print("[Info] Create an instance of the GPSModuleImpl class.")
+        print("[Info] Create an instance of the IVK172Impl class.")
         print("[Info] The port for the IVK172 G-Mouse USB GPS is " + str(port) + ".")
-        self.__ser           = serial.Serial( port , 9600 , timeout=1 )
+        self.__port     = port
+        self.__interval = interval
+    #######################################################################
+    def __read_sensor( self ):
+        while True:
+            try:
+                ser = serial.Serial( self.__port , 9600 , timeout=1 )
+                while True:
+                    try:
+                        line = ser.readline().decode('ascii', errors='replace').strip()
+                        if not line:
+                            continue
+                        if line.startswith('$GPGGA') or line.startswith('$GNGGA'):
+                            try:
+                                msg = pynmea2.parse(line)
+                                if msg.latitude and msg.longitude:
+                                    if msg.gps_qual == 1:
+                                        SensorWrapper.ivk172_latitude  = msg.latitude
+                                        SensorWrapper.ivk172_longitude = msg.longitude
+                                    time.sleep( self.__interval )
+                            except (pynmea2.ParseError, ValueError):
+                                continue
+                    except serial.SerialException as e:
+                        break
+
+                ser.close()
+            except serial.SerialException as e:
+                time.sleep(1)
+    #######################################################################
+    def doIvk172Impl(self):
+        print("[Info] Start the doIvk172Impl function.")
+        self.__read_sensor()
+
+########################################################################
+class NEOM8NImpl:
+
+    def __init__( self , port , interval ):
+        print("[Info] Create an instance of the NEOM8NImpl class.")
+        print("[Info] The port for the NEOM8NImpl GPS is " + str(port) + ".")
+        self.__port          = port
         self.__interval      = interval
     #######################################################################
     def __read_sensor( self ):
-        frame = {"GGA": None, "RMC": None, "VTG": None, "GSA": None, "GSV": None}
-        try:
-            while True:
-                raw = self.__ser.readline().decode('ascii', errors='replace').strip()
-                if not raw.startswith('$'):
-                    continue
-                msg = None
-                try:
-                    rawmsg = pynmea2.parse(raw)
-                    msg = rawmsg
-                except pynmea2.ParseError:
-                    pass
-                if msg is None:
-                    continue
-                key = msg.sentence_type
-                if key in frame:
-                    frame[key] = msg
-                if all(frame.values()):
-                    gga , rmc , vtg , gsa , gsv = (
-                        frame["GGA"] , frame["RMC"] , frame["VTG"] , frame["GSA"] , frame["GSV"]
-                    )
-
-                    SensorWrapper.ivk172_latitude              = gga.latitude
-                    SensorWrapper.ivk172_longitude             = gga.longitude
-                    SensorWrapper.ivk172_altitude              = gga.altitude
-                    SensorWrapper.ivk172_altitude_units        = gga.altitude_units
-                    SensorWrapper.ivk172_num_sats              = gga.num_sats
-                    SensorWrapper.ivk172_datestamp             = rmc.datestamp
-                    SensorWrapper.ivk172_timestamp             = rmc.timestamp
-                    SensorWrapper.ivk172_spd_over_grnd         = rmc.spd_over_grnd
-                    SensorWrapper.ivk172_true_course           = rmc.true_course
-                    SensorWrapper.ivk172_true_track            = vtg.true_track
-                    SensorWrapper.ivk172_spd_over_grnd_kmph    = vtg.spd_over_grnd_kmph
-                    SensorWrapper.ivk172_pdop                  = gsa.pdop
-                    SensorWrapper.ivk172_hdop                  = gsa.hdop
-                    SensorWrapper.ivk172_vdop                  = gsa.vdop
-                    SensorWrapper.ivk172_num_sv_in_view        = gsv.num_sv_in_view
-                    SensorWrapper.ivk172_frame                 = dict.fromkeys( frame , None )
-                    SensorWrapper.ivk172_end_time              = time.monotonic_ns()
-                    
-                time.sleep( self.__interval )
-        except KeyboardInterrupt as e:
-            pass # ignore
-        finally:
-            self.__ser.close()
+        while True:
+            try:
+                ser = serial.Serial( self.__port , 9600 , timeout=1 )
+                while True:
+                    try:
+                        line = ser.readline().decode('ascii', errors='replace').strip()
+                        if not line:
+                            continue
+                        if line.startswith('$GNGGA'):
+                            try:
+                                msg = pynmea2.parse(line)
+                                if msg.gps_qual == 1:
+                                    SensorWrapper.neom8n_latitude  = msg.latitude
+                                    SensorWrapper.neom8n_longitude = msg.longitude
+                                time.sleep( self.__interval )
+                            except (pynmea2.ParseError, ValueError):
+                                continue
+                    except serial.SerialException as e:
+                        break
+                ser.close()
+            except serial.SerialException as e:
+                time.sleep(1)
     #######################################################################
-    def doGpsModuleImpl(self):
-        print("[Info] Start the doGpsModuleImpl function.")
-        try:
-            self.__read_sensor()
-        except Exception as e:
-            pass # ignore
+    def doNeom8nImpl(self):
+        print("[Info] Start the doNeom8nImpl function.")
+        self.__read_sensor()
 
 ########################################################################
 class CameraModuleImpl:
@@ -1064,20 +1111,8 @@ class CameraModuleImpl:
                         SensorWrapper.icm20948_tmpRaw               ,
                         SensorWrapper.ivk172_latitude               ,
                         SensorWrapper.ivk172_longitude              ,
-                        SensorWrapper.ivk172_altitude               ,
-                        SensorWrapper.ivk172_altitude_units         ,
-                        SensorWrapper.ivk172_num_sats               ,
-                        SensorWrapper.ivk172_datestamp              ,
-                        SensorWrapper.ivk172_timestamp              ,
-                        SensorWrapper.ivk172_spd_over_grnd          ,
-                        SensorWrapper.ivk172_true_course            ,
-                        SensorWrapper.ivk172_true_track             ,
-                        SensorWrapper.ivk172_spd_over_grnd_kmph     ,
-                        SensorWrapper.ivk172_pdop                   ,
-                        SensorWrapper.ivk172_hdop                   ,
-                        SensorWrapper.ivk172_vdop                   ,
-                        SensorWrapper.ivk172_num_sv_in_view         ,
-                        SensorWrapper.ivk172_frame                  ,
+                        SensorWrapper.neom8n_latitude               ,
+                        SensorWrapper.neom8n_longitude              ,
                         SensorWrapper.powermonitor_start_time       ,
                         SensorWrapper.powermonitor_end_time         ,
                         SensorWrapper.powermonitor_voltage          ,
@@ -1129,6 +1164,152 @@ class CameraModuleImpl:
                 self.__picamera2.stop()
 
 #############################################################################################################
+########################################################################
+class DummyImpl:
+
+    write_queue = queue.Queue()
+
+    def __init__( self , csvFileName , csvFile ):
+        print("[Info] Create an instance of the DummyImpl class.")
+        self.__frame_ready             = threading.Event()
+        self.__frame_count             = 0
+        self.__csvFile                 = csvFile
+        self.__csvFileWriter           = csv.writer( csvFile )
+        self.__end_time                = None
+        self.__sensor_ts               = None
+    #######################################################################
+    def __csv_writer( self , stop_event ):
+        while not stop_event.is_set() or not DummyImpl.write_queue.empty():
+            try:
+                row = DummyImpl.write_queue.get( timeout=0.1 )
+                self.__csvFileWriter.writerow( row )
+            except queue.Empty:
+                continue
+        self.__csvFile.flush()
+    #######################################################################
+    def __process_frame( self ):
+        SensorWrapper.camera_module_cond    .acquire()
+        SensorWrapper.mpu6050_cond          .acquire()
+        SensorWrapper.icm20948_cond         .acquire()
+        SensorWrapper.powermonitor_cond     .acquire()
+        if ((self.__frame_count % 30) == 0) :
+            SensorWrapper.powermonitor_cond.notify()      
+        SensorWrapper.mpu6050_cond         .notify()
+        SensorWrapper.icm20948_cond        .notify()
+        SensorWrapper.camera_module_cond   .notify()
+        SensorWrapper.mpu6050_ready       = True
+        SensorWrapper.icm20948_ready      = True
+        SensorWrapper.powermonitor_ready  = True
+        SensorWrapper.camera_module_ready = True
+        SensorWrapper.mpu6050_cond         .release()
+        SensorWrapper.icm20948_cond        .release()
+        SensorWrapper.powermonitor_cond    .release()
+        SensorWrapper.camera_module_cond   .release()
+        self.__sensor_ts = 0
+        self.__end_time  = time.monotonic_ns()
+        self.__frame_ready.set()
+    #######################################################################
+    def __output_camera_module_csv( self ):
+        stop_event    = threading.Event()
+        writer_thread = threading.Thread( target=self.__csv_writer , args=( stop_event, ) )
+        writer_thread.start()
+        try:
+            while SensorWrapper.running.is_set():
+                try:
+                    SensorWrapper.camera_module_cond.acquire()
+                    while not SensorWrapper.camera_module_ready:
+                        SensorWrapper.camera_module_cond.wait()
+                    SensorWrapper.camera_module_cond.release()
+    
+                    data = [
+                        SensorWrapper.unix_epoch_start_time         ,
+                        self.__end_time                             ,
+                        self.__sensor_ts                            ,
+                        self.__frame_count                          ,
+                        SensorWrapper.bme280_start_time             ,
+                        SensorWrapper.bme280_end_time               ,
+                        SensorWrapper.bme280_byte0                  ,
+                        SensorWrapper.bme280_byte1                  ,
+                        SensorWrapper.bme280_byte2                  ,
+                        SensorWrapper.bme280_byte3                  ,
+                        SensorWrapper.bme280_byte4                  ,
+                        SensorWrapper.bme280_byte5                  ,
+                        SensorWrapper.bme280_byte6                  ,
+                        SensorWrapper.bme280_byte7                  ,
+                        SensorWrapper.mpu6050_start_time            ,
+                        SensorWrapper.mpu6050_end_time              ,
+                        SensorWrapper.mpu6050_byte0                 ,
+                        SensorWrapper.mpu6050_byte1                 ,
+                        SensorWrapper.mpu6050_byte2                 ,
+                        SensorWrapper.mpu6050_byte3                 ,
+                        SensorWrapper.mpu6050_byte4                 ,
+                        SensorWrapper.mpu6050_byte5                 ,
+                        SensorWrapper.mpu6050_byte6                 ,
+                        SensorWrapper.mpu6050_byte7                 ,
+                        SensorWrapper.mpu6050_byte8                 ,
+                        SensorWrapper.mpu6050_byte9                 ,
+                        SensorWrapper.mpu6050_byte10                ,
+                        SensorWrapper.mpu6050_byte11                ,
+                        SensorWrapper.mpu6050_byte12                ,
+                        SensorWrapper.mpu6050_byte13                ,
+                        SensorWrapper.icm20948_start_time           ,
+                        SensorWrapper.icm20948_end_time             ,
+                        SensorWrapper.icm20948_axRaw                ,
+                        SensorWrapper.icm20948_ayRaw                ,
+                        SensorWrapper.icm20948_azRaw                ,
+                        SensorWrapper.icm20948_gxRaw                ,
+                        SensorWrapper.icm20948_gyRaw                ,
+                        SensorWrapper.icm20948_gzRaw                ,
+                        SensorWrapper.icm20948_mxRaw                ,
+                        SensorWrapper.icm20948_myRaw                ,
+                        SensorWrapper.icm20948_mzRaw                ,
+                        SensorWrapper.icm20948_tmpRaw               ,
+                        SensorWrapper.ivk172_latitude               ,
+                        SensorWrapper.ivk172_longitude              ,
+                        SensorWrapper.neom8n_latitude               ,
+                        SensorWrapper.neom8n_longitude              ,
+                        SensorWrapper.powermonitor_start_time       ,
+                        SensorWrapper.powermonitor_end_time         ,
+                        SensorWrapper.powermonitor_voltage          ,
+                        SensorWrapper.powermonitor_throttled        ,
+                        SensorWrapper.powermonitor_cpu              ,
+                        SensorWrapper.powermonitor_mem_used_B       ,
+                        SensorWrapper.powermonitor_mem_total_B      ,
+                        SensorWrapper.powermonitor_mem_available_B  ,
+                        SensorWrapper.powermonitor_mem_percent_used ,
+                        SensorWrapper.powermonitor_temp             ,
+                        SensorWrapper.powermonitor_disk_used_B      ,
+                        SensorWrapper.powermonitor_disk_total_B     ,
+                        SensorWrapper.powermonitor_disk_free_B      ,
+                        SensorWrapper.powermonitor_disk_percent_used
+                    ]
+                    DummyImpl.write_queue.put( data )
+                    self.__frame_count += 1
+                    SensorWrapper.camera_module_ready = False
+                except (KeyboardInterrupt , ValueError) as e:
+                     SensorWrapper.running.clear()
+                except Exception as e:
+                    print(e)
+        finally:
+            stop_event.set()
+            writer_thread.join()
+    #######################################################################
+    def doDummyImpl( self ):
+        print("[Info] Start the doDummyImpl function.")
+        SensorWrapper.unix_epoch_start_time = time.time()
+
+        cameraThread = threading.Thread( target=self.__output_camera_module_csv )
+        cameraThread.start()
+
+        while SensorWrapper.running.is_set():
+            self.__process_frame()
+            if self.__frame_ready.wait(timeout=1.0):
+                self.__frame_ready.clear()
+            time.sleep(0.03333)
+
+        cameraThread.join()
+
+#############################################################################################################
 #############################################################################################################
 #############################################################################################################
 class SensorAnalyzerImpl:
@@ -1148,14 +1329,24 @@ class SensorAnalyzerImpl:
                 dataFrame = pandas.read_csv( self.__parameterDic["input_dir"] + "/" + "movie.csv" )
                 dataFrame = dataFrame.replace("", pandas.NA)
                 dataFrame = dataFrame.ffill()
-                if self.__parameterDic["gps_en"] :
-                    gai = GPSAnalyzerImpl(
-                        self.__parameterDic["input_dir"]        ,
-                        dataFrame                               ,
-                        self.__parameterDic["map_animation_en"]
-                    )
-                    # GPSデータを地図、GoogleMapデータで可視化できるようにする
-                    processList.append( multiprocessing.Process( target=gai.doGPSAnalyzerImpl ) )
+
+                iai = I2CAnalyzerImpl( self.__parameterDic , dataFrame )
+                iai.doI2CAnalyzerImpl()
+                dataFrame = iai.getDataFrame()
+
+                if self.__parameterDic["ivk172_en"] or self.__parameterDic["neom8n_en"] :
+                    if self.__parameterDic["bme280_en"]:
+                        gai = GPSAnalyzerImpl(
+                            self.__parameterDic["input_dir"]        ,
+                            dataFrame                               ,
+                            self.__parameterDic["map_animation_en"] ,
+                            self.__parameterDic["ivk172_en"]        ,
+                            self.__parameterDic["neom8n_en"]
+                        )
+                        # GPSデータを地図、GoogleMapデータで可視化できるようにする
+                        processList.append( multiprocessing.Process( target=gai.doGPSAnalyzerImpl ) )
+                    else:
+                        print("[Warn] GPS data conversion requires BME280 measurement data. Enable the BME280 option to activate this feature.")
 
                 # 動画データが存在する場合
                 if os.path.isfile( self.__parameterDic["input_dir"] + "/" + "movie.h264" ):
@@ -1164,11 +1355,6 @@ class SensorAnalyzerImpl:
                     if self.__parameterDic["mp4_en"]:
                         processList.append(
                             multiprocessing.Process(
-                                # target = mai.doMovieAnalyzerImpl(
-                                #     False ,
-                                #     self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                #     None
-                                # )
                                 target = mai.doMovieAnalyzerImpl ,
                                 args   = (
                                     False ,
@@ -1185,23 +1371,13 @@ class SensorAnalyzerImpl:
                                 os.path.isfile( self.__parameterDic["input_dir"] + "/" + "movie.csv"  )
                         ):
 
-                            iai = I2CAnalyzerImpl( self.__parameterDic , dataFrame )
-                            
-                            # 動画のcsvと他センサーデータのcsvをマージする
-                            # マージ後データを動画データに組み込む
-                            iai.doI2CAnalyzerImpl()
                             processList.append(
                                 multiprocessing.Process(
-                                    # target= mai.doMovieAnalyzerImpl(
-                                    #     self.__parameterDic["frame_sync_en"] ,
-                                    #     self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                    #     iai.getDataFrame()
-                                    # )
                                     target = mai.doMovieAnalyzerImpl ,
                                     args   = (
                                         self.__parameterDic["frame_sync_en"] ,
                                         self.__parameterDic["input_dir"] + "/" + "movie.h264" ,
-                                        iai.getDataFrame()
+                                        dataFrame
                                     )
                                 )
                             )
@@ -1587,15 +1763,15 @@ class I2CAnalyzerImpl:
             mx , my , mz = self.__apply_mag_calibration( rawmx , rawmy , rawmz , offset , soft_iron_matrix )
             accel_range = calib["accel_range"]
             gyro_range  = calib["gyro_range"]
-            accel_scale = 32768.0
-            if   accel_range == 250:
-                accel_scale = 131.0
-            elif accel_range == 500:
-                accel_scale = 65.5
-            elif accel_range == 1000:
-                accel_scale = 32.8
-            elif accel_range == 2000:
-                accel_scale = 16.4
+            accel_scale = 16384.0
+            if   accel_range == 2:
+                accel_scale = 16384.0
+            elif accel_range == 4:
+                accel_scale = 8192.0
+            elif accel_range == 8:
+                accel_scale = 4096.0
+            elif accel_range == 16:
+                accel_scale = 2048.0
             gyro_scale = 131.0
             if   gyro_range == 250:
                 gyro_scale = 131.0
@@ -1612,15 +1788,15 @@ class I2CAnalyzerImpl:
             gy = rawgy / gyro_scale
             gz = rawgz / gyro_scale
         else:
-            mx = rawmx
-            my = rawmy
-            mz = rawmz
-            ax = rawax / 32768.0
-            ay = raway / 32768.0
-            az = rawaz / 32768.0
+            ax = rawax / 16384.0
+            ay = raway / 16384.0
+            az = rawaz / 16384.0
             gx = rawgx / 131.0
             gy = rawgy / 131.0
             gz = rawgz / 131.0
+        mx = rawmx
+        my = rawmy 
+        mz = rawmz
         heading_rad = numpy.arctan2( my , mx )
         heading_deg = numpy.degrees( heading_rad )
         heading_deg = ( heading_deg + 360 ) % 360
@@ -1739,11 +1915,87 @@ class I2CAnalyzerImpl:
 ########################################################################################
 class GPSAnalyzerImpl:
 
-    def __init__(self , output_dir , dataFrame , animation_en ):
+    def __init__(self , output_dir , dataFrame , animation_en , ivk172_en , neom8n_en ):
         self.__output_dir   = output_dir
         self.__dataFrame    = dataFrame
         self.__animation_en = animation_en
+        self.__ivk172_en    = ivk172_en
+        self.__neom8n_en    = neom8n_en
 
+    def __filter_gps( self ):
+        filter_gps = 0
+        if filter_gps == 1:
+            print("Kalman")
+            # NaN除去（必要に応じて）
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # 観測データを行列化
+            observations = self.__dataFrame[['neom8n_latitude', 'neom8n_longitude']].values
+            # カルマンフィルターの初期化
+            kf = KalmanFilter(
+                initial_state_mean=observations[0],
+                n_dim_obs=2,
+                transition_matrices=numpy.eye(2),      # 状態遷移（変化が緩やかと仮定）
+                observation_matrices=numpy.eye(2),     # 観測モデル（直接観測）
+                observation_covariance=numpy.eye(2) * 1e-6,  # 観測ノイズ
+                transition_covariance=numpy.eye(2) * 1e-6     # 状態変化ノイズ
+            )
+            # フィルタを適用
+            smoothed_state_means, _ = kf.smooth(observations)
+            # 結果をDataFrameに上書き
+            self.__dataFrame['neom8n_latitude'] = smoothed_state_means[:, 0]
+            self.__dataFrame['neom8n_longitude'] = smoothed_state_means[:, 1]
+        elif filter_gps == 2:
+            print("移動平均")
+            # ---- ウィンドウサイズ設定 ----
+            window_size = 5  # 平均を取る点数（奇数推奨）
+            # ---- 欠損値を除外 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- 移動平均の適用 ----
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].rolling(window=window_size, center=True).mean()
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].rolling(window=window_size, center=True).mean()
+            # ---- 端のNaNを補間 ----
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear')
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear', limit_direction='both')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear', limit_direction='both')
+        elif filter_gps == 3:
+            print("ガウシアン平滑化フィルタ")
+            # ---- 欠損値の除去 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- パラメータ設定 ----
+            window_size = 7   # 平滑化のウィンドウ幅（奇数を推奨）
+            sigma = 2.0       # ガウシアン分布の標準偏差
+            # ---- ガウシアン平滑化フィルタ ----
+            self.__dataFrame['neom8n_latitude'] = (
+                self.__dataFrame['neom8n_latitude']
+                .rolling(window=window_size, win_type='gaussian', center=True)
+                .mean(std=sigma)
+                .interpolate(method='linear')
+            )
+            self.__dataFrame['neom8n_longitude'] = (
+                self.__dataFrame['neom8n_longitude']
+                .rolling(window=window_size, win_type='gaussian', center=True)
+                .mean(std=sigma)
+                .interpolate(method='linear')
+            )
+            self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude'].interpolate(method='linear', limit_direction='both')
+            self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude'].interpolate(method='linear', limit_direction='both')
+        elif filter_gps == 4:
+            print("サヴィツキー–ゴレイ平滑化フィルタ")
+            # ---- 欠損値の除去 ----
+            self.__dataFrame = self.__dataFrame.dropna(subset=['neom8n_latitude', 'neom8n_longitude']).reset_index(drop=True)
+            # ---- パラメータ設定 ----
+            window_size = 7   # 平滑化ウィンドウ（奇数のみ）
+            polyorder = 2     # Savitzky-Golay の多項式次数（1〜3が一般的）
+            # ---- (3) サヴィツキー–ゴレイ平滑化フィルタ ----
+            # savgol_filter はウィンドウがデータより大きいとエラーになるため確認
+            if len(self.__dataFrame) >= window_size:
+                self.__dataFrame['neom8n_latitude'] = savgol_filter(self.__dataFrame['neom8n_latitude'], window_length=window_size, polyorder=polyorder)
+                self.__dataFrame['neom8n_longitude'] = savgol_filter(self.__dataFrame['neom8n_longitude'], window_length=window_size, polyorder=polyorder)
+            else:
+                self.__dataFrame['neom8n_latitude'] = self.__dataFrame['neom8n_latitude']
+                self.__dataFrame['neom8n_longitude'] = self.__dataFrame['neom8n_longitude']
+            
     def __generate_map_html( self ):
         print("[Info] Start the __generate_map_html function.")
         self.__dataFrame     = self.__dataFrame.reset_index()
@@ -1760,32 +2012,60 @@ class GPSAnalyzerImpl:
             axis=1
         )
         if self.__animation_en:
-            features = []
-            for _, row in self.__dataFrame.iterrows():
-                features.append(
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["ivk172_longitude"], row["ivk172_latitude"]], },
-                      "properties": {
-                          "time"      : row["iso_8601_time"]                      ,
-                          "duration"  : 1000                                      ,
-                          "popup"     : f"{row['ivk172_latitude']} , {row['ivk172_longitude']}" ,
-                          "icon"      : "circle"                                  ,
-                          "iconstyle" : {
-                              "fillColor"   :"blue" ,
-                              "fillOpacity" : 0.8   ,
-                              "stroke"      :"true" ,
-                              "radius"      : 6
-                          },
-                      }
-                     })
+            if self.__ivk172_en:
+                features = []
+                for _, row in self.__dataFrame.iterrows():
+                    features.append(
+                        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["ivk172_longitude"], row["ivk172_latitude"]], },
+                          "properties": {
+                              "time"      : row["iso_8601_time"]                      ,
+                              "duration"  : 1000                                      ,
+                              "popup"     : f"{row['ivk172_latitude']} , {row['ivk172_longitude']}" ,
+                              "icon"      : "circle"                                  ,
+                              "iconstyle" : {
+                                  "fillColor"   :"blue" ,
+                                  "fillOpacity" : 0.8   ,
+                                  "stroke"      :"true" ,
+                                  "radius"      : 6
+                              },
+                          }
+                         })
 
-            geojson    = { "type": "FeatureCollection", "features": features, }
-            folium_map = folium.Map(
-                location=[
-                    self.__dataFrame["ivk172_latitude"].iloc[0] ,
-                    self.__dataFrame["ivk172_longitude"].iloc[0]
-                ],
-                zoom_start=10
-            )
+                geojson    = { "type": "FeatureCollection", "features": features, }
+                folium_map = folium.Map(
+                    location=[
+                        self.__dataFrame["ivk172_latitude"].iloc[0] ,
+                        self.__dataFrame["ivk172_longitude"].iloc[0]
+                    ],
+                    zoom_start=10
+                )
+            elif self.__neom8n_en:
+                features = []
+                for _, row in self.__dataFrame.iterrows():
+                    features.append(
+                        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ row["neom8n_longitude"], row["neom8n_latitude"]], },
+                          "properties": {
+                              "time"      : row["iso_8601_time"]                      ,
+                              "duration"  : 1000                                      ,
+                              "popup"     : f"{row['neom8n_latitude']} , {row['neom8n_longitude']}" ,
+                              "icon"      : "circle"                                  ,
+                              "iconstyle" : {
+                                  "fillColor"   :"blue" ,
+                                  "fillOpacity" : 0.8   ,
+                                  "stroke"      :"true" ,
+                                  "radius"      : 6
+                              },
+                          }
+                         })
+                geojson    = { "type": "FeatureCollection", "features": features, }
+                folium_map = folium.Map(
+                    location=[
+                        self.__dataFrame["neom8n_latitude"].iloc[0] ,
+                        self.__dataFrame["neom8n_longitude"].iloc[0]
+                    ],
+                    zoom_start=10
+                )
+                
             TimestampedGeoJson(
                 geojson                  ,
                 period         = "PT2S"  ,
@@ -1797,28 +2077,44 @@ class GPSAnalyzerImpl:
             ).add_to(folium_map)
         else:
             folium_figure = folium.Figure(width=1500, height=700)
-            folium_map    = folium.Map(
-                location=[
-                    self.__dataFrame["ivk172_latitude"] .iloc[0] ,
-                    self.__dataFrame["ivk172_longitude"].iloc[0]
-                ] ,
-                zoom_start=4.5
-            ).add_to( folium_figure )
-            folium.PolyLine(
-                self.__dataFrame[["ivk172_latitude", "ivk172_longitude"]].values.tolist(),
-                color="blue",
-                weight=3,
-                opacity=0.8
-            ).add_to(folium_map)
-            # for i in range( self.__dataFrame.count()["latitude"] ):
-            #     folium.Marker( location=[ self.__dataFrame.loc[ i , "latitude" ] , self.__dataFrame.loc[ i , "longitude" ] ] ).add_to( folium_map )
-        #folium_map.save( self.__csvFileName + ".html" )
+            if self.__ivk172_en:            
+                folium_map    = folium.Map(
+                    location=[
+                        self.__dataFrame["ivk172_latitude"] .iloc[0] ,
+                        self.__dataFrame["ivk172_longitude"].iloc[0]
+                    ] ,
+                    zoom_start=4.5
+                ).add_to( folium_figure )
+                folium.PolyLine(
+                    self.__dataFrame[["ivk172_latitude", "ivk172_longitude"]].values.tolist(),
+                    color="blue",
+                    weight=3,
+                    opacity=0.8
+                ).add_to(folium_map)
+            elif self.__neom8n_en:
+                folium_map    = folium.Map(
+                    location=[
+                        self.__dataFrame["neom8n_latitude"] .iloc[0] ,
+                        self.__dataFrame["neom8n_longitude"].iloc[0]
+                    ] ,
+                    zoom_start=4.5
+                ).add_to( folium_figure )
+                folium.PolyLine(
+                    self.__dataFrame[["neom8n_latitude", "neom8n_longitude"]].values.tolist(),
+                    color="blue",
+                    weight=3,
+                    opacity=0.8
+                ).add_to(folium_map)
         folium_map.save(  self.__output_dir + "/map.html" )
 
     def __generate_map_kml( self ):
         print("[Info] Start the __generate_map_kml function.")
         self.__dataFrame                 = self.__dataFrame.reset_index()
-        tuple_B                          = [tuple(x) for x in self.__dataFrame[['ivk172_longitude','ivk172_latitude','ivk172_altitude']].values]
+        tuple_B = None
+        if self.__ivk172_en:
+            tuple_B                          = [tuple(x) for x in self.__dataFrame[['ivk172_longitude','ivk172_latitude','bme280_altitude']].values]
+        elif self.__neom8n_en:
+            tuple_B                          = [tuple(x) for x in self.__dataFrame[['neom8n_longitude','neom8n_latitude','bme280_altitude']].values]
         kml                              = simplekml.Kml(open=1)
         linestring                       = kml.newlinestring(name="A Sloped Line")
         linestring.coords                = tuple_B
@@ -1826,11 +2122,11 @@ class GPSAnalyzerImpl:
         linestring.extrude               = 0
         linestring.style.linestyle.width = 3
         linestring.style.linestyle.color = simplekml.Color.red
-        #kml.save( self.__csvFileName + ".kml" )
         kml.save(  self.__output_dir + "/map.kml" )
 
     def doGPSAnalyzerImpl( self ):
         print("[Info] Start the doGPSAnalyzerImpl function.")
+        self.__filter_gps()
         self.__generate_map_html()
         self.__generate_map_kml()
 
@@ -1848,20 +2144,20 @@ class MovieAnalyzerImpl:
             if movieFileName is not None:
                 if self.__parameterDic["gpu_en"]:
                     print("[Info] Convert from H.264 to MP4 using GPU.")
-                    print("[Info] ffmpeg -framerate " + str( self.__parameterDic["framerate"]) + " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName + " -c:v h264_nvenc -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
+                    print("[Info] ffmpeg -framerate " + str( self.__parameterDic["framerate"]) + " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName + " -c:v h264_nvenc -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
                     subprocess.run(
                         "ffmpeg -framerate " + str( self.__parameterDic["framerate"]) +
                         " -hwaccel cuda -hwaccel_output_format cuda -c:v h264_cuvid -y -i " + movieFileName +
-                        " -c:v h264_nvenc -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
+                        " -c:v h264_nvenc -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
                         shell=True , capture_output=True , text=True
                     )
                 else:
                     print("[Info] Convert from H.264 to MP4.")
                     print("[Info] ffmpeg -y -framerate " + str( self.__parameterDic["framerate"]) + " -i " + movieFileName +
-                          " -c:v libx264 -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
+                          " -c:v libx264 -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" )
                     subprocess.run(
                         "ffmpeg -y -framerate " + str( self.__parameterDic["framerate"]) + " -i " + movieFileName +
-                        " -c:v libx264 -preset fast -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
+                        " -c:v libx264 -preset slow -r " + str( self.__parameterDic["framerate"]) + " " + movieFileName + ".mp4" ,
                         shell=True , capture_output=True , text=True
                     )
             else:
@@ -1906,11 +2202,11 @@ class MovieAnalyzerImpl:
             if self.__parameterDic["gpu_en"]:
                 print(
                     "[Info] ffmpeg -framerate " + str(framerate) +
-                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset fast -y " + movieFileName
+                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset slow -y " + movieFileName
                 )
                 subprocess.run(
                     "ffmpeg -framerate " + str(framerate) +
-                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset fast -y " + movieFileName ,
+                    " -i tmp/frame_opencv_%08d.jpg -c:v h264_nvenc -preset slow -y " + movieFileName ,
                     shell          = True ,
                     capture_output = True ,
                     text           = True
