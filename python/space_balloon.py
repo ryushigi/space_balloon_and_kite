@@ -294,6 +294,7 @@ class SensorWrapper:
             self.__ivk172_interval                    = float ( args.ivk172_interval    )
             self.__neom8n_interval                    = float ( args.neom8n_interval    )
             self.__bme280_interval                    = float ( args.bme280_interval    )
+            self.__gt_502gg_n_interval                = float ( args.gt502ggn_interval  )
             self.__bitrate                            = int   ( args.bitrate            )
             self.__width                              = int   ( args.width              )
             self.__height                             = int   ( args.height             )
@@ -803,6 +804,7 @@ class GT_502GG_NImpl:
 
     def __init__( self , interval ):
         print("[Info] Create an instance of the GT_502GG_NImpl class.")
+        self.__interval = interval
         gpsd.connect()
 
     #######################################################################
