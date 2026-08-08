@@ -220,6 +220,11 @@ class SensorWrapper:
         fappend = open( csvFileName , 'a' , newline='' , encoding='utf-8' , buffering=csvbuffer )
         return fappend
 
+    def __get_direwolf_csvFile( self , csvFileName ):
+        print("[Info] Create the  " + csvFileName + ".")
+        fopen  = open( csvFileName , 'w' , newline='' , encoding='utf-8' , buffering=1 )
+        return fopen
+
     def __read_args( self ):
         parser = argparse.ArgumentParser( description='option' , formatter_class=argparse.RawTextHelpFormatter )
         parser.add_argument( '--mode'       , '-m' , default=0     , required=True       , help="" )
@@ -416,7 +421,8 @@ class SensorWrapper:
             ]
         ]
         self.__generate_empty_csvFile( cameraCsvFile , data )
-        self.__camera_fa  = self.__get_csvFile( cameraCsvFile , self.__csvbuffer )
+        self.__camera_fa   = self.__get_csvFile( cameraCsvFile , self.__csvbuffer )
+        self.__direwolf_fw = self.__get_direwolf_csvFile( "/tmp/dw_spb.csv" )
 
         #######################################################
         # Camera Module Setting
@@ -435,11 +441,13 @@ class SensorWrapper:
             ####################################################### 
         
             self.__cameraModuleImpl = CameraModuleImpl(
-                self.__picamera2  ,
-                encoder           ,
-                cameraCsvFile     ,
-                self.__camera_fa  ,
-                movieFileName
+                self.__picamera2   ,
+                encoder            ,
+                cameraCsvFile      ,
+                self.__camera_fa   ,
+                movieFileName      ,
+                "/tmp/dw_spb.csv"  ,
+                self.__direwolf_fw
             )
         #########################################################################
         if self.__icm20948_en :
@@ -493,9 +501,7 @@ class SensorWrapper:
                 #self.__gps_en          and threadList.append( threading.Thread( target=self.__gpsModuleImpl   .doGpsModuleImpl    ) ) # 2025/10/25
                 self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
                 self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
-
                 self.__gt_502gg_n_en   and threadList.append( threading.Thread( target=self.__gt_502gg_nImpl  .doGT_502GG_NImpl   ) )
-
                 self.__bme280_en       and threadList.append( threading.Thread( target=self.__bme280Impl      .doBME280Impl       ) )
                 self.__mpu6050_en      and threadList.append( threading.Thread( target=self.__mpu6050Impl     .doMPU6050Impl      ) )
                 self.__icm20948_en     and threadList.append( threading.Thread( target=self.__icm20948Impl    .doIcm20948Impl     ) )
@@ -1050,9 +1056,10 @@ class NEOM8NImpl:
 ########################################################################
 class CameraModuleImpl:
 
-    write_queue = queue.Queue()
+    write_queue    = queue.Queue()
+    df_write_queue = queue.Queue()
 
-    def __init__( self , picamera2 , encoder , csvFileName , csvFile , movieFileName ):
+    def __init__( self , picamera2 , encoder , csvFileName , csvFile , movieFileName , csvFileNameDireWolf , csvFileDireWolf ):
         print("[Info] Create an instance of the CameraModuleImpl class.")
         self.__frame_ready             = threading.Event()
         self.__frame_count             = 0
@@ -1062,6 +1069,8 @@ class CameraModuleImpl:
         self.__movieFile               = movieFileName
         self.__csvFile                 = csvFile
         self.__csvFileWriter           = csv.writer( csvFile )
+        self.__csvFileDireWolf         = csvFileDireWolf
+        self.__csvFileWriterDireWolf   = csv.writer( csvFileDireWolf )
         self.__end_time                = None
         self.__sensor_ts               = None
     #######################################################################
@@ -1073,6 +1082,21 @@ class CameraModuleImpl:
             except queue.Empty:
                 continue
         self.__csvFile.flush()
+    #######################################################################
+    def __df_csv_writer( self , stop_event ):
+        last_write_time = time.monotonic()
+        while not stop_event.is_set() or not CameraModuleImpl.df_write_queue.empty():
+            try:
+                row = CameraModuleImpl.df_write_queue.get( timeout=0.1 )
+                if time.monotonic() - last_write_time >= 60.0:
+                    self.__csvFileDireWolf.seek(0)
+                    self.__csvFileWriterDireWolf.writerow( row )
+                    self.__csvFileDireWolf.truncate()
+                    self.__csvFileDireWolf.flush()
+                    last_write_time = time.monotonic()
+            except queue.Empty:
+                continue
+        self.__csvFileDireWolf.flush()
     #######################################################################
     def __process_frame( self, request ):
         SensorWrapper.camera_module_cond    .acquire()
@@ -1097,9 +1121,11 @@ class CameraModuleImpl:
         self.__frame_ready.set()
     #######################################################################
     def __output_camera_module_csv( self ):
-        stop_event    = threading.Event()
-        writer_thread = threading.Thread( target=self.__csv_writer , args=( stop_event, ) )
+        stop_event       = threading.Event()
+        writer_thread    = threading.Thread( target=self.__csv_writer , args=( stop_event, ) )
         writer_thread.start()
+        df_writer_thread = threading.Thread( target=self.__df_csv_writer , args=( stop_event, ) )
+        df_writer_thread.start()
         try:
             while SensorWrapper.running.is_set():
                 try:
@@ -1174,7 +1200,25 @@ class CameraModuleImpl:
                         SensorWrapper.powermonitor_disk_percent_used
                     ]
                     
-                    CameraModuleImpl.write_queue.put( data )
+                    CameraModuleImpl.write_queue   .put( data )
+
+                    data = [
+                        self.__frame_count                          ,
+                        SensorWrapper.bme280_byte0                  ,
+                        SensorWrapper.bme280_byte1                  ,
+                        SensorWrapper.bme280_byte2                  ,
+                        SensorWrapper.bme280_byte3                  ,
+                        SensorWrapper.bme280_byte4                  ,
+                        SensorWrapper.bme280_byte5                  ,
+                        SensorWrapper.bme280_byte6                  ,
+                        SensorWrapper.bme280_byte7                  ,
+                        SensorWrapper.gt_502gg_n_latitude           ,
+                        SensorWrapper.gt_502gg_n_longitude          ,
+                        SensorWrapper.gt_502gg_n_altitude           ,
+                    ]
+                    
+                    CameraModuleImpl.df_write_queue.put( data )
+                    
                     self.__frame_count += 1
                     SensorWrapper.camera_module_ready = False
                 except (KeyboardInterrupt , ValueError) as e:
