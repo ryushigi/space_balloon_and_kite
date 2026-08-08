@@ -9,6 +9,7 @@ try:
     import serial
     import pynmea2
     import psutil
+    import gpsd
 except ImportError:
     print("[Warn] The libraries required for reading sensor data from GPIO or related interfaces have not been imported.")
 try:
@@ -110,6 +111,9 @@ class SensorWrapper:
     neom8n_latitude                = 0
     neom8n_longitude               = 0
     neom8n_end_time                = 0
+    gt_502gg_n_latitude            = 0
+    gt_502gg_n_longitude           = 0
+    gt_502gg_n_altitude            = 0
     powermonitor_start_time        = 0
     powermonitor_end_time          = 0
     powermonitor_voltage           = 0
@@ -153,6 +157,7 @@ class SensorWrapper:
         # self.__gps_en                = None
         self.__ivk172_en             = None
         self.__neom8n_en             = None
+        self.__gt_502gg_n_en         = None
         self.__powermonitor_en       = None
         self.__bme280_en             = None
         self.__mpu6050_en            = None
@@ -176,6 +181,7 @@ class SensorWrapper:
         # self.__gps_interval          = None
         self.__neom8n_interval       = None
         self.__ivk172_interval       = None
+        self.__gt_502gg_n_interval   = None
         self.__bme280_interval       = None
         self.__analyzerDic           = {}
 
@@ -237,6 +243,7 @@ class SensorWrapper:
         parser.add_argument( '--ivk172_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--neom8n_port'           , default="/dev/serial0"              , help="" )
         parser.add_argument( '--neom8n_interval'       , default="5.0"                       , help="" )
+        parser.add_argument( '--gt502ggn_interval'     , default="5.0"                       , help="" )
         parser.add_argument( '--bme280_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--bme280_addr'           , default="0x76"                      , help="" )
         parser.add_argument( '--mpu6050_addr'          , default="0x68"                      , help="" )
@@ -246,6 +253,7 @@ class SensorWrapper:
         #parser.add_argument( '--gps'                   , default=False , action='store_true' , help="" ) # 2025/10/25
         parser.add_argument( '--ivk172'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--neom8n'                , default=False , action='store_true' , help="" )
+        parser.add_argument( '--gt502ggn'              , default=False , action='store_true' , help="" )
         parser.add_argument( '--bme280'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--mpu6050'               , default=False , action='store_true' , help="" )
         parser.add_argument( '--icm20948'              , default=False , action='store_true' , help="" )
@@ -272,6 +280,7 @@ class SensorWrapper:
             #self.__gps_en                             = int   ( args.gps                ) # 2025/10/25
             self.__ivk172_en                          = int   ( args.ivk172             )
             self.__neom8n_en                          = int   ( args.neom8n             )
+            self.__gt_502gg_n_en                      = int   ( args.gt502ggn           )            
             self.__bme280_en                          = int   ( args.bme280             )
             self.__mpu6050_en                         = int   ( args.mpu6050            )
             self.__icm20948_en                        = int   ( args.icm20948           )
@@ -298,6 +307,7 @@ class SensorWrapper:
             # self.__analyzerDic["gps_en"]              = self.__gps_en # 2025/10/25
             self.__analyzerDic["ivk172_en"]           = self.__ivk172_en
             self.__analyzerDic["neom8n_en"]           = self.__neom8n_en
+            self.__analyzerDic["gt502ggn_en"]         = self.__gt_502gg_n_en
             self.__analyzerDic["bme280_en"]           = self.__bme280_en
             self.__analyzerDic["mpu6050_en"]          = self.__mpu6050_en
             self.__analyzerDic["icm20948_en"]         = self.__icm20948_en
@@ -385,6 +395,9 @@ class SensorWrapper:
                 'ivk172_longitude'              ,
                 'neom8n_latitude'               ,
                 'neom8n_longitude'              ,
+                'gt_502gg_n_latitude'           ,
+                'gt_502gg_n_longitude'          ,
+                'gt_502gg_n_altitude'           ,
                 'powermonitor_start_time'       ,
                 'powermonitor_end_time'         ,
                 'powermonitor_voltage'          ,
@@ -407,7 +420,7 @@ class SensorWrapper:
         #######################################################
         # Camera Module Setting
         # setting camera configuration
-        if self.__mode == 0:
+        if (self.__mode == 0):
             self.__picamera2     = Picamera2()
             # setting H264 encoder
             encoder = H264Encoder( bitrate=self.__bitrate )
@@ -452,6 +465,10 @@ class SensorWrapper:
             print("[Info] Activate the NEO M8N GPS.")
             self.__neom8nImpl = NEOM8NImpl( self.__neom8n_port , self.__neom8n_interval )
         #########################################################################
+        if self.__gt_502gg_n_en :
+            print("[Info] Activate the GT_502GG_N GPS.")
+            self.__gt_502gg_nImpl = GT_502GG_NImpl( self.__gt_502gg_n_interval )
+        #########################################################################
         if self.__powermonitor_en :
             print("[Info] Activate the PowerMonitor.")
             self.__powermonitorImpl = PowerMonitorImpl()
@@ -466,7 +483,7 @@ class SensorWrapper:
         self.__read_args()
         signal.signal( signal.SIGINT , self.__handler )
         #######################################################################
-        if self.__mode == 0:
+        if (self.__mode == 0):
             print("[Info] It operates in sensor data output mode.")
             self.__setup_sensors()
             threadList = []
@@ -475,6 +492,9 @@ class SensorWrapper:
                 #self.__gps_en          and threadList.append( threading.Thread( target=self.__gpsModuleImpl   .doGpsModuleImpl    ) ) # 2025/10/25
                 self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
                 self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
+
+                self.__gt_502gg_n_en   and threadList.append( threading.Thread( target=self.__gt_502gg_nImpl  .doGT_502GG_NImpl   ) )
+
                 self.__bme280_en       and threadList.append( threading.Thread( target=self.__bme280Impl      .doBME280Impl       ) )
                 self.__mpu6050_en      and threadList.append( threading.Thread( target=self.__mpu6050Impl     .doMPU6050Impl      ) )
                 self.__icm20948_en     and threadList.append( threading.Thread( target=self.__icm20948Impl    .doIcm20948Impl     ) )
@@ -777,6 +797,26 @@ class PowerMonitorImpl:
         finally:
             stop_event.set()
             writer_thread.join()
+
+########################################################################
+class GT_502GG_NImpl:
+
+    def __init__( self , interval ):
+        print("[Info] Create an instance of the GT_502GG_NImpl class.")
+        gpsd.connect()
+
+    #######################################################################
+    def doGT_502GG_NImpl(self):
+        print("[Info] Start the doGT_502GG_NImpl function.")
+        while True:
+            try:
+                packet  = packet = gpsd.get_current()
+                SensorWrapper.gt_502gg_n_latitude  = packet.lat
+                SensorWrapper.gt_502gg_n_longitude = packet.lon
+                SensorWrapper.gt_502gg_n_altitude  = packet.alt
+            except Exception as e:
+                pass
+            time.sleep(self.__interval)
 
 ########################################################################
 class BME280Impl:
@@ -1113,6 +1153,9 @@ class CameraModuleImpl:
                         SensorWrapper.ivk172_longitude              ,
                         SensorWrapper.neom8n_latitude               ,
                         SensorWrapper.neom8n_longitude              ,
+                        SensorWrapper.gt_502gg_n_latitude           ,
+                        SensorWrapper.gt_502gg_n_longitude          ,
+                        SensorWrapper.gt_502gg_n_altitude           ,
                         SensorWrapper.powermonitor_start_time       ,
                         SensorWrapper.powermonitor_end_time         ,
                         SensorWrapper.powermonitor_voltage          ,
@@ -1268,6 +1311,9 @@ class DummyImpl:
                         SensorWrapper.ivk172_longitude              ,
                         SensorWrapper.neom8n_latitude               ,
                         SensorWrapper.neom8n_longitude              ,
+                        SensorWrapper.gt_502gg_n_latitude           ,
+                        SensorWrapper.gt_502gg_n_longitude          ,
+                        SensorWrapper.gt_502gg_n_altitude           ,
                         SensorWrapper.powermonitor_start_time       ,
                         SensorWrapper.powermonitor_end_time         ,
                         SensorWrapper.powermonitor_voltage          ,
