@@ -10,6 +10,7 @@ try:
     import pynmea2
     import psutil
     import gpsd
+    import socket
 except ImportError:
     print("[Warn] The libraries required for reading sensor data from GPIO or related interfaces have not been imported.")
 try:
@@ -598,8 +599,8 @@ class DireWolfImp:
     def __aprs_send( self , aprs_payload ):
         print("[Info] Start the __aprs_send function.")
         """DireWolfのKISSポートへ送信"""
-        kiss_packet = self.__make_kiss_ui_frame( self.__MY_CALLSIGN , self.__APRS_TOCALL , self.__APRS_PATH , aprs_payload )
         try:
+            kiss_packet = self.__make_kiss_ui_frame( self.__MY_CALLSIGN , self.__APRS_TOCALL , self.__APRS_PATH , aprs_payload )
             with socket.socket( socket.AF_INET , socket.SOCK_STREAM ) as s:
                 s.settimeout(5.0)
                 s.connect( ( self.__DIREWOLF_HOST , self.__DIREWOLF_PORT ) )
@@ -607,32 +608,38 @@ class DireWolfImp:
             return True
         except OSError as e:
             print(f"KISS send error: {e}")
-            return False    
+            return False
+        except Exception as e:
+            print(e)
 
     #######################################################################
     def __make_kiss_ui_frame( self , source , dest , paths , payload_str ):
         print("[Info] Start the __make_kiss_ui_frame function.")
         """AX.25 UIフレームを組み立ててKISSでカプセル化"""
-        ax25 = bytearray()
-        # 1. アドレスフィールド (宛先 -> 送信元 -> 中継経路)
-        ax25.extend( self.__encode_callsign( dest , is_last=False ) )
-        ax25.extend( self.__encode_callsign( source , is_last=(len(paths)==0) ) )
-        for i, p in enumerate(paths):
-            ax25.extend( self.__encode_callsign( p , is_last=(i==len(paths)-1) ) )
-        # 2. コントロール / PID
-        ax25.append( 0x03 )  # UI frame
-        ax25.append( 0xF0 )  # No Layer 3
-        # 3. 本文
-        ax25.extend( payload_str.encode("ascii") )
-        # 4. KISSカプセル化 (特殊文字のエスケープ)
-        kiss_body = bytearray([0x00])  # Data frame on Channel 0
-        for b in ax25:
-            if( b==0xC0 ):
-                kiss_body.extend( [0xDB, 0xDC] )
-            elif( b==0xDB ):
-                kiss_body.extend( [0xDB, 0xDD] )
-            else:
-                kiss_body.append( b )
+        try:
+            ax25 = bytearray()
+            # 1. アドレスフィールド (宛先 -> 送信元 -> 中継経路)
+            ax25.extend( self.__encode_callsign( dest , is_last=False ) )
+            ax25.extend( self.__encode_callsign( source , is_last=(len(paths)==0) ) )
+            for i, p in enumerate(paths):
+                ax25.extend( self.__encode_callsign( p , is_last=(i==len(paths)-1) ) )
+            # 2. コントロール / PID
+            ax25.append( 0x03 )  # UI frame
+            ax25.append( 0xF0 )  # No Layer 3
+            # 3. 本文
+            ax25.extend( payload_str.encode("ascii") )
+            # 4. KISSカプセル化 (特殊文字のエスケープ)
+            kiss_body = bytearray([0x00])  # Data frame on Channel 0
+            for b in ax25:
+                if( b==0xC0 ):
+                    kiss_body.extend( [0xDB, 0xDC] )
+                elif( b==0xDB ):
+                    kiss_body.extend( [0xDB, 0xDD] )
+                else:
+                    kiss_body.append( b )
+
+        except Exception as e:
+            print(e)
         # 5. 先頭と末尾を FEND で包む
         return bytearray([0xC0]) + kiss_body + bytearray([0xC0])
 
@@ -640,18 +647,21 @@ class DireWolfImp:
     def __encode_callsign( self , call_ssid , is_last=False ):
         print("[Info] Start the __encode_callsign function.")
         """コールサイン+SSIDをAX.25の7バイト形式に変換"""
-        if( "-" in call_ssid ):
-            call, ssid = call_ssid.split("-")
-            ssid = int(ssid)
-        else:
-            call = call_ssid
-            ssid = 0
-        call = call.upper().ljust(6)[:6]
-        encoded = bytearray([ord(c) << 1 for c in call])
-        ssid_byte = 0x60 | (ssid << 1)
-        if( is_last ):
-            ssid_byte |= 0x01
-        encoded.append(ssid_byte)
+        try:
+            if( "-" in call_ssid ):
+                call, ssid = call_ssid.split("-")
+                ssid = int(ssid)
+            else:
+                call = call_ssid
+                ssid = 0
+            call = call.upper().ljust(6)[:6]
+            encoded = bytearray([ord(c) << 1 for c in call])
+            ssid_byte = 0x60 | (ssid << 1)
+            if( is_last ):
+                ssid_byte |= 0x01
+            encoded.append(ssid_byte)
+        except Exception as e:
+            print(e)
         return encoded
     
     #######################################################################
