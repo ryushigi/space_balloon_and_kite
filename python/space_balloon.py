@@ -142,11 +142,6 @@ class SensorWrapper:
         self.__bme280_bus            = None
         self.__mpu6050_bus           = None
         self.__camera_fa             = None
-        # self.__bme280_fa             = None
-        # self.__mpu6050_fa            = None
-        # self.__icm20948_fa           = None
-        # self.__powermonitor_fa       = None
-        # self.__gps_fa                = None
         self.__mode                  = None
         self.__json_output_dir       = None
         self.__csv_output_dir        = None
@@ -154,7 +149,6 @@ class SensorWrapper:
         self.__icm20948_i2cbus       = None
         self.__bme280_i2cbus         = None
         self.__mpu6050_i2cbus        = None
-        # self.__gps_en                = None
         self.__ivk172_en             = None
         self.__neom8n_en             = None
         self.__gt_502gg_n_en         = None
@@ -168,20 +162,15 @@ class SensorWrapper:
         self.__width                 = None
         self.__height                = None
         self.__csvbuffer             = None
-        #self.__gps_port              = None # 2025/10/25
         self.__ivk172_port           = None
         self.__neom8n_port           = None
         self.__bme280_addr           = None
         self.__mpu6050_addr          = None
         self.__icm20948_addr         = None
-        # self.__gps_csv               = None
-        # self.__bme280_csv            = None
-        # self.__mpu6050_csv           = None
-        # self.__icm20948_csv          = None
-        # self.__gps_interval          = None
         self.__neom8n_interval       = None
         self.__ivk172_interval       = None
         self.__gt_502gg_n_interval   = None
+        self.__direwolf_interval     = None
         self.__bme280_interval       = None
         self.__analyzerDic           = {}
 
@@ -190,11 +179,6 @@ class SensorWrapper:
         self.__picamera2.stop_encoder()
         self.__picamera2.stop()
         self.__camera_fa       .close()
-        # self.__bme280_en       and self.__bme280_fa       .close()
-        # self.__mpu6050_en      and self.__mpu6050_fa      .close()
-        # self.__icm20948_en     and self.__icm20948_fa     .close()
-        # self.__powermonitor_en and self.__powermonitor_fa .close()
-        # self.__gps_en          and self.__gps_fa          .close()
         self.__bme280_bus      .close()
         self.__mpu6050_bus     .close()
         SensorWrapper.camera_module_ready = True
@@ -242,20 +226,18 @@ class SensorWrapper:
         parser.add_argument( '--width'                 , default="1920"                      , help="" )
         parser.add_argument( '--height'                , default="1080"                      , help="" )
         parser.add_argument( '--csvbuffer'             , default="512"                       , help="" )
-        # parser.add_argument( '--gps_port'              , default="/dev/ttyACM0"              , help="" ) # 2025/10/25
-        # parser.add_argument( '--gps_interval'          , default="5.0"                       , help="" ) # 2025/10/25
         parser.add_argument( '--ivk172_port'           , default="/dev/ttyACM0"              , help="" )
         parser.add_argument( '--ivk172_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--neom8n_port'           , default="/dev/serial0"              , help="" )
         parser.add_argument( '--neom8n_interval'       , default="5.0"                       , help="" )
         parser.add_argument( '--gt502ggn_interval'     , default="5.0"                       , help="" )
         parser.add_argument( '--bme280_interval'       , default="5.0"                       , help="" )
+        parser.add_argument( '--direwolf_interval'     , default="60.0"                      , help="" )
         parser.add_argument( '--bme280_addr'           , default="0x76"                      , help="" )
         parser.add_argument( '--mpu6050_addr'          , default="0x68"                      , help="" )
         parser.add_argument( '--icm20948_addr'         , default="0x68"                      , help="" )
         #############################################################################################
         # Sensor Acquisition and Data Analysis Mode Options
-        #parser.add_argument( '--gps'                   , default=False , action='store_true' , help="" ) # 2025/10/25
         parser.add_argument( '--ivk172'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--neom8n'                , default=False , action='store_true' , help="" )
         parser.add_argument( '--gt502ggn'              , default=False , action='store_true' , help="" )
@@ -282,7 +264,6 @@ class SensorWrapper:
             self.__json_output_dir                    =         args.json_output_dir
             self.__csv_output_dir                     =         args.csv_output_dir
             self.__movie_output_dir                   =         args.movie_output_dir
-            #self.__gps_en                             = int   ( args.gps                ) # 2025/10/25
             self.__ivk172_en                          = int   ( args.ivk172             )
             self.__neom8n_en                          = int   ( args.neom8n             )
             self.__gt_502gg_n_en                      = int   ( args.gt502ggn           )            
@@ -295,22 +276,20 @@ class SensorWrapper:
             self.__mpu6050_i2cbus                     = int   ( args.mpu6050_i2cbus     )
             self.__framerate                          = int   ( args.framerate          )
             self.__framebuffer                        = int   ( args.framebuffer        )
-            # self.__gps_interval                       = float ( args.gps_interval       ) # 2025/10/25
             self.__ivk172_interval                    = float ( args.ivk172_interval    )
             self.__neom8n_interval                    = float ( args.neom8n_interval    )
             self.__bme280_interval                    = float ( args.bme280_interval    )
+            self.__direwolf_interval                  = float ( args.direwolf_interval  )
             self.__gt_502gg_n_interval                = float ( args.gt502ggn_interval  )
             self.__bitrate                            = int   ( args.bitrate            )
             self.__width                              = int   ( args.width              )
             self.__height                             = int   ( args.height             )
             self.__csvbuffer                          = int   ( args.csvbuffer          )
-            #self.__gps_port                           =         args.gps_port # 2025/10/25
             self.__ivk172_port                        =         args.ivk172_port
             self.__neom8n_port                        =         args.neom8n_port
             self.__bme280_addr                        = int   ( args.bme280_addr   , 16 )
             self.__mpu6050_addr                       = int   ( args.mpu6050_addr  , 16 )
             self.__icm20948_addr                      = int   ( args.icm20948_addr , 16 )
-            # self.__analyzerDic["gps_en"]              = self.__gps_en # 2025/10/25
             self.__analyzerDic["ivk172_en"]           = self.__ivk172_en
             self.__analyzerDic["neom8n_en"]           = self.__neom8n_en
             self.__analyzerDic["gt502ggn_en"]         = self.__gt_502gg_n_en
@@ -427,7 +406,7 @@ class SensorWrapper:
         #######################################################
         # Camera Module Setting
         # setting camera configuration
-        if (self.__mode == 0):
+        if (self.__mode == 0) or (self.__mode == 5):
             self.__picamera2     = Picamera2()
             # setting H264 encoder
             encoder = H264Encoder( bitrate=self.__bitrate )
@@ -449,6 +428,13 @@ class SensorWrapper:
                 "/tmp/dw_spb.csv"  ,
                 self.__direwolf_fw
             )
+
+            #######################################################
+            if self.__mode == 5:
+                self.__direwolfImpl = DireWolfImp(
+                    self.__direwolf_interval
+                )
+            
         #########################################################################
         if self.__icm20948_en :
             print("[Info] Activate the ICM-20948.")
@@ -461,10 +447,6 @@ class SensorWrapper:
         if self.__mpu6050_en:
             print("[Info] Activate the MPU6050.")
             self.__mpu6050Impl = MPU6050Impl( self.__mpu6050_bus , self.__mpu6050_addr )
-        #########################################################################
-        # if self.__gps_en :
-        #     print("[Info] Activate the IVK172 G-Mouse USB GPS.")
-        #     self.__gpsModuleImpl = GPSModuleImpl( self.__gps_port , self.__gps_interval )
         #########################################################################
         if self.__ivk172_en :
             print("[Info] Activate the IVK172 G-Mouse USB GPS.")
@@ -492,13 +474,15 @@ class SensorWrapper:
         self.__read_args()
         signal.signal( signal.SIGINT , self.__handler )
         #######################################################################
-        if (self.__mode == 0):
+        if (self.__mode == 0) or (self.__mode == 5):
             print("[Info] It operates in sensor data output mode.")
             self.__setup_sensors()
             threadList = []
             try:
+                if self.__mode == 5:
+                    direwolfProcess = multiprocessing.Process( target=self.__direwolfImpl.doDireWolfImpl )
+
                 threadList.append( threading.Thread(                            target=self.__cameraModuleImpl.doCameraModuleImpl ) )
-                #self.__gps_en          and threadList.append( threading.Thread( target=self.__gpsModuleImpl   .doGpsModuleImpl    ) ) # 2025/10/25
                 self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
                 self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
                 self.__gt_502gg_n_en   and threadList.append( threading.Thread( target=self.__gt_502gg_nImpl  .doGT_502GG_NImpl   ) )
@@ -509,6 +493,8 @@ class SensorWrapper:
                 SensorWrapper.running.set()
                 for singleThread in threadList:
                     singleThread.start()
+                if self.__mode == 5:
+                    direwolfProcess.start()
                 for singleThread in threadList:
                     singleThread.join()
             except Exception as e:
@@ -549,6 +535,141 @@ class SensorWrapper:
             except Exception as e:
                 print(e)
         #######################################################################
+
+########################################################################
+class DireWolfImp:
+
+    def __init__( self , interval ):
+        print("[Info] Create an instance of the DireWolfImp class.")
+        self.__interval = interval
+        # ---- APRS書式 ----
+        self.__RESERVED_CHARS = ("|", "~", "{", "}")
+        self.__EXPECT_FIELDS  = 4                      # 書き込み途中の行を弾くためのチェック(0で無効)
+        self.__DATA_TYP       = ">"                    # Status report
+        self.__MAX_STATUS_LEN = 62                     # ステータステキストの上限[バイト]
+        # ---- 送信設定 ----
+        self.__MY_CALLSIGN   = "Jxxxxx-11"             # 自局コールサイン + SSID
+        self.__APRS_TOCALL   = "APZDUT"                # 実験用 APZ??? レンジ
+        self.__APRS_PATH     = ["WIDE1-1", "WIDE2-1"]  # 中継経路
+        self.__DIREWOLF_HOST = "localhost"
+        self.__DIREWOLF_PORT = 8001                    # DireWolf KISS TCP
+        
+    #######################################################################
+    def __read_direwolf_file( self ):
+        print("[Info] Start the __read_direwolf_file function.")
+        data = ""
+        if os.path.exists("/tmp/dw_spb.csv"):
+            print("[Info] Read /tmp/dw_spb.csv")
+            f = open( "/tmp/dw_spb.csv" , "r" , encoding="utf-8" )
+            data = f.read()
+            f.close()
+        return data
+
+    #######################################################################
+    def __make_aprs_payload( self , sendstr ):
+        print("[Info] Start the __make_aprs_payload function.")
+        body = self.__sanitize( sendstr )
+        if( not body ):
+            print("no printable data")
+            return None
+        n_fields = len(body.split(","))
+        if( self.__EXPECT_FIELDS>0 and n_fields!=self.__EXPECT_FIELDS ):
+            print(f"field count mismatch: {n_fields} (expected {self.__EXPECT_FIELDS}) -> skip")
+            return None
+        # 途中で切ると壊れたCSVが飛ぶので、超過時は送らない
+        if( len(body) > self.__MAX_STATUS_LEN ):
+            print(f"too long: {len(body)} bytes (max {self.__MAX_STATUS_LEN}) -> skip")
+            return None
+        return self.__DATA_TYP + body    
+
+    #######################################################################
+    def __sanitize( self , text ):
+        print("[Info] Start the __sanitize function.")
+        """印字可能ASCII(0x20-0x7E)のみ残し、APRS予約文字を除去する"""
+        out = []
+        for ch in text:
+            if( ch in self.__RESERVED_CHARS ):
+                continue
+            if( 0x20<=ord(ch)<=0x7E ):
+                out.append(ch)
+        return "".join(out)
+
+    #######################################################################
+    def __aprs_send( self , aprs_payload ):
+        print("[Info] Start the __aprs_send function.")
+        """DireWolfのKISSポートへ送信"""
+        kiss_packet = self.__make_kiss_ui_frame( self.__MY_CALLSIGN , self.__APRS_TOCALL , self.__APRS_PATH , aprs_payload )
+        try:
+            with socket.socket( socket.AF_INET , socket.SOCK_STREAM ) as s:
+                s.settimeout(5.0)
+                s.connect( ( self.__DIREWOLF_HOST , self.__DIREWOLF_PORT ) )
+                s.sendall( kiss_packet )
+            return True
+        except OSError as e:
+            print(f"KISS send error: {e}")
+            return False    
+
+    #######################################################################
+    def __make_kiss_ui_frame( self , source , dest , paths , payload_str ):
+        print("[Info] Start the __make_kiss_ui_frame function.")
+        """AX.25 UIフレームを組み立ててKISSでカプセル化"""
+        ax25 = bytearray()
+        # 1. アドレスフィールド (宛先 -> 送信元 -> 中継経路)
+        ax25.extend( self.__encode_callsign( dest , is_last=False ) )
+        ax25.extend( self.__encode_callsign( source , is_last=(len(paths)==0) ) )
+        for i, p in enumerate(paths):
+            ax25.extend( self.__encode_callsign( p , is_last=(i==len(paths)-1) ) )
+        # 2. コントロール / PID
+        ax25.append( 0x03 )  # UI frame
+        ax25.append( 0xF0 )  # No Layer 3
+        # 3. 本文
+        ax25.extend( payload_str.encode("ascii") )
+        # 4. KISSカプセル化 (特殊文字のエスケープ)
+        kiss_body = bytearray([0x00])  # Data frame on Channel 0
+        for b in ax25:
+            if( b==0xC0 ):
+                kiss_body.extend( [0xDB, 0xDC] )
+            elif( b==0xDB ):
+                kiss_body.extend( [0xDB, 0xDD] )
+            else:
+                kiss_body.append( b )
+        # 5. 先頭と末尾を FEND で包む
+        return bytearray([0xC0]) + kiss_body + bytearray([0xC0])
+
+    #######################################################################
+    def __encode_callsign( self , call_ssid , is_last=False ):
+        print("[Info] Start the __encode_callsign function.")
+        """コールサイン+SSIDをAX.25の7バイト形式に変換"""
+        if( "-" in call_ssid ):
+            call, ssid = call_ssid.split("-")
+            ssid = int(ssid)
+        else:
+            call = call_ssid
+            ssid = 0
+        call = call.upper().ljust(6)[:6]
+        encoded = bytearray([ord(c) << 1 for c in call])
+        ssid_byte = 0x60 | (ssid << 1)
+        if( is_last ):
+            ssid_byte |= 0x01
+        encoded.append(ssid_byte)
+        return encoded
+    
+    #######################################################################
+    def doDireWolfImpl(self):
+        print("[Info] Start the doDireWolfImpl function.")
+        while True:
+            try:
+                data = self.__read_direwolf_file()
+                print("[Info] Read data:" + str(data) )
+                aprs_payload = self.__make_aprs_payload( data )
+                if aprs_payload :
+                    print(f'aprs_payload="{aprs_payload}" ({len(aprs_payload)} bytes)')
+                    self.__aprs_send( aprs_payload )
+                else:
+                    time.sleep(5)
+            except Exception as e:
+                pass
+            time.sleep(self.__interval)
 
 ########################################################################
 class CalibrationICM20948Impl:
@@ -1090,7 +1211,7 @@ class CameraModuleImpl:
                 row = CameraModuleImpl.df_write_queue.get( timeout=0.1 )
                 if time.monotonic() - last_write_time >= 60.0:
                     self.__csvFileDireWolf.seek(0)
-                    self.__csvFileWriterDireWolf.writerow( row )
+                    self.__csvFileDireWolf.write(",".join(map(str, row)))
                     self.__csvFileDireWolf.truncate()
                     self.__csvFileDireWolf.flush()
                     last_write_time = time.monotonic()
@@ -1204,14 +1325,6 @@ class CameraModuleImpl:
 
                     data = [
                         self.__frame_count                          ,
-                        SensorWrapper.bme280_byte0                  ,
-                        SensorWrapper.bme280_byte1                  ,
-                        SensorWrapper.bme280_byte2                  ,
-                        SensorWrapper.bme280_byte3                  ,
-                        SensorWrapper.bme280_byte4                  ,
-                        SensorWrapper.bme280_byte5                  ,
-                        SensorWrapper.bme280_byte6                  ,
-                        SensorWrapper.bme280_byte7                  ,
                         SensorWrapper.gt_502gg_n_latitude           ,
                         SensorWrapper.gt_502gg_n_longitude          ,
                         SensorWrapper.gt_502gg_n_altitude           ,
