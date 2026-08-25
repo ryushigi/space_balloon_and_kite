@@ -1842,6 +1842,8 @@ $ pip install openpyxl
 $ pip install folium
 $ pip install simplekml
 $ pip install psutil
+$ pip install gpsd2
+$ pip install py-gpsd2
 ```
 
 <!--
