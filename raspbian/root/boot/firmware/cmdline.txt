@@ -1,0 +1,1 @@
+console=tty1 root=PARTUUID=2b585153-02 rootfstype=ext4 fsck.repair=yes rootwait modules-load=dwc2,g_mass_storage g_mass_storage.file=/piusb.bin g_mass_storage.removable=1 g_mass_storage.stall=0 splash plymouth.ignore-serial-consoles cfg80211.ieee80211_regdom=JP

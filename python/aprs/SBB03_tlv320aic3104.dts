@@ -1,0 +1,84 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709", "brcm,bcm2711", "brcm,bcm2712";
+
+	/* 1. 外部オシレーター（24.576MHz）の定義 */
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			codec_mclk: codec-mclk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <24576000>;
+			};
+		};
+	};
+
+	/* 2. I2S (PCM) インターフェースの有効化 */
+	fragment@2 {
+		target = <&i2s>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	/* 3. I2C5 へのコーデックIC追加 */
+	fragment@3 {
+		target = <&i2c5>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			tlv320aic3104: tlv320aic3104@18 {
+				#sound-dai-cells = <0>;
+				compatible = "ti,tlv320aic3104";
+				reg = <0x18>;
+				ai3x-micbias-vg = <2>; /* set MICBIAS to 2.5v */
+				clocks = <&codec_mclk>;
+				clock-names = "mclk";
+				status = "okay";
+			};
+		};
+	};
+
+	/* 4. サウンドカードの定義 */
+	fragment@4 {
+		target-path = "/";
+		__overlay__ {
+			sound {
+				compatible = "simple-audio-card";
+				simple-audio-card,format = "i2s";
+				simple-audio-card,name = "tlv320aic3104-soundcard";
+				status = "okay";
+
+				/* widgetsで端子の「種類」と「名前」を登録 */
+				simple-audio-card,widgets =
+					"Headphone", "to RIG_MIC",
+					"Headphone", "unsued HPROUT",
+					"Line", "from RIG_SP";
+
+				/* routingでチップのピンと結線（エラーの原因となった2行を削除） */
+				simple-audio-card,routing =
+					"to RIG_MIC", "HPLOUT",
+					"unsued HPROUT", "HPROUT",
+					"LINE1L", "from RIG_SP",
+					"HPLOUT", "Left DAC",
+					"HPROUT", "Right DAC";
+
+				simple-audio-card,bitclock-master = <&dailink_codec>;
+				simple-audio-card,frame-master = <&dailink_codec>;
+
+				simple-audio-card,cpu {
+					sound-dai = <&i2s>;
+				};
+
+				dailink_codec: simple-audio-card,codec {
+					sound-dai = <&tlv320aic3104>;
+				};
+			};
+		};
+	};
+};

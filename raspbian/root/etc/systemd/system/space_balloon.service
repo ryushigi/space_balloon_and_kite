@@ -1,0 +1,23 @@
+[Unit]
+Description=Run space_balloon Python script in venv at boot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart= /home/spb001/python_space_balloon/bin/python \
+				/home/spb001/work/space_balloon_and_kite/python/space_balloon.py \
+                                --mode 4           \
+                                --icm20948 \
+                                --icm20948_addr 0x68 \
+                                --icm20948_i2cbus 1 \
+                                --neom8n \
+                                --neom8n_interval 1 \
+                                --csvbuffer 10240 \
+                                --csv_output_dir ./output \
+                                --movie_output_dir ./output
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

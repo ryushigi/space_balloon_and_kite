@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SBB03基板技術資料.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="sbb03基板技術資料">SBB03基板技術資料</h1>
+<h2 id="設計情報">設計情報</h2>
+<h3 id="通信if一覧">通信I/F一覧</h3>
+<table>
+<thead>
+<tr>
+<th>ポート</th>
+<th>アドレス</th>
+<th>デバイス/<br/>コネクター</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>uart1</td>
+<td>-</td>
+<td>J6</td>
+<td>シリアルコンソール</td>
+</tr>
+<tr>
+<td>uart3</td>
+<td>-</td>
+<td>J4</td>
+<td>無線機リモートコントロール(予備)</td>
+</tr>
+<tr>
+<td>uart5</td>
+<td>-</td>
+<td>J5</td>
+<td>外部GNSSレシーバー</td>
+</tr>
+<tr>
+<td>i2c1</td>
+<td>0x68</td>
+<td>J3</td>
+<td>ICM-20948(9軸センサー)</td>
+</tr>
+<tr>
+<td>i2c4</td>
+<td>(任意)</td>
+<td>J2</td>
+<td>外部I2Cセンサー(予備)</td>
+</tr>
+<tr>
+<td>i2c5</td>
+<td>0x76</td>
+<td>U4</td>
+<td>BME280(気圧・温度・湿度センサー)</td>
+</tr>
+<tr>
+<td>i2c5</td>
+<td>0x18</td>
+<td>U5</td>
+<td>TLV320AIC3104(オーディオコーデック:無線機データ通信)</td>
+</tr>
+<tr>
+<td>i2s</td>
+<td>-</td>
+<td>U5</td>
+<td>TLV320AIC3104</td>
+</tr>
+</tbody>
+</table>
+<h3 id="io機能割り当て">I/O機能割り当て</h3>
+<table>
+<thead>
+<tr>
+<th>SBB<br/>J1</th>
+<th>RasPi<br/>J8</th>
+<th>機能選択</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(28)</td>
+<td>(27)</td>
+<td>(SDA0)</td>
+<td>(未接続、RasPiのシステムで使用)</td>
+</tr>
+<tr>
+<td>(27)</td>
+<td>(28)</td>
+<td>(SCL0)</td>
+<td>(未接続、RasPiのシステムで使用)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>3</td>
+<td>SDA1</td>
+<td>I2C: ICM-20948</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>SCL1</td>
+<td>I2C: ICM-20948</td>
+</tr>
+<tr>
+<td>8</td>
+<td>7</td>
+<td>TXD3</td>
+<td>無線機リモートコントロール(予備)</td>
+</tr>
+<tr>
+<td>30</td>
+<td>29</td>
+<td>RXD3</td>
+<td>無線機リモートコントロール(予備)</td>
+</tr>
+<tr>
+<td>32</td>
+<td>31</td>
+<td>GPCLK2</td>
+<td>TLV320AIC3104動作クロック(予備)</td>
+</tr>
+<tr>
+<td>25</td>
+<td>26</td>
+<td>GPIO7</td>
+<td>(未接続)</td>
+</tr>
+<tr>
+<td>23</td>
+<td>24</td>
+<td>SDA4</td>
+<td>外部I2Cセンサー(予備)</td>
+</tr>
+<tr>
+<td>22</td>
+<td>21</td>
+<td>SCL4</td>
+<td>外部I2Cセンサー(予備)</td>
+</tr>
+<tr>
+<td>20</td>
+<td>19</td>
+<td>SDA5</td>
+<td>I2C: BME280/TLV320AIC3104</td>
+</tr>
+<tr>
+<td>24</td>
+<td>23</td>
+<td>SCL5</td>
+<td>I2C: BME280/TLV320AIC3104</td>
+</tr>
+<tr>
+<td>31</td>
+<td>32</td>
+<td>TXD5</td>
+<td>UART: GNSSレシーバー</td>
+</tr>
+<tr>
+<td>34</td>
+<td>33</td>
+<td>RXD5</td>
+<td>UART: GNSSレシーバー</td>
+</tr>
+<tr>
+<td>7</td>
+<td>8</td>
+<td>TXD1</td>
+<td>シリアルコンソール</td>
+</tr>
+<tr>
+<td>9</td>
+<td>10</td>
+<td>RXD1</td>
+<td>シリアルコンソール</td>
+</tr>
+<tr>
+<td>35</td>
+<td>36</td>
+<td>GPIO16</td>
+<td>GNSS 1秒パルス(予備)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>11</td>
+<td>GPIO17</td>
+<td>無線機送信制御</td>
+</tr>
+<tr>
+<td>11</td>
+<td>12</td>
+<td>PCM_CLK</td>
+<td>I2S: TLV320AIC3104</td>
+</tr>
+<tr>
+<td>36</td>
+<td>35</td>
+<td>PCM_FS</td>
+<td>I2S: TLV320AIC3104</td>
+</tr>
+<tr>
+<td>37</td>
+<td>38</td>
+<td>PCM_DIN</td>
+<td>I2S: TLV320AIC3104</td>
+</tr>
+<tr>
+<td>39</td>
+<td>40</td>
+<td>PCM_DOUT</td>
+<td>I2S: TLV320AIC3104</td>
+</tr>
+<tr>
+<td>16</td>
+<td>15</td>
+<td>GPIO22</td>
+<td>無線機リモートコントロール</td>
+</tr>
+<tr>
+<td>15</td>
+<td>16</td>
+<td>GPIO23</td>
+<td>無線機リモートコントロール</td>
+</tr>
+<tr>
+<td>17</td>
+<td>18</td>
+<td>GPIO24</td>
+<td>無線機リモートコントロール</td>
+</tr>
+<tr>
+<td>21</td>
+<td>22</td>
+<td>GPIO25</td>
+<td>(未接続)</td>
+</tr>
+<tr>
+<td>38</td>
+<td>37</td>
+<td>GPIO26</td>
+<td>TLV320AIC3104リセット(予備)</td>
+</tr>
+<tr>
+<td>14</td>
+<td>13</td>
+<td>GPIO27</td>
+<td>無線機リモートコントロール</td>
+</tr>
+</tbody>
+</table>
+<h2 id="使用方法">使用方法</h2>
+<h3 id="シリアルコンソール有効化">シリアルコンソール有効化</h3>
+<ul>
+<li>cmdline.txt から &quot;quiet&quot; を削除</li>
+<li>config.txt に下記を追加</li>
+</ul>
+<pre class="hljs"><code><div>dtparam=uart0_console
+enable_uart=1
+</div></code></pre>
+<h3 id="シリアルポートとi2cを追加">シリアルポートとi2Cを追加</h3>
+<ul>
+<li>config.txt に下記を追加またはアンコメント</li>
+</ul>
+<pre class="hljs"><code><div>dtoverlay=uart3
+dtoverlay=uart5
+dtparam=i2c_arm=on
+dtoverlay=i2c4,pins_8_9
+dtoverlay=i2c5,pins_10_11
+</div></code></pre>
+<h3 id="gnssレシーバーの有効化">GNSSレシーバーの有効化</h3>
+<ul>
+<li>J5にGNSSレシーバーを接続</li>
+<li>uartにデータが流れていることを確認</li>
+</ul>
+<pre class="hljs"><code><div>cat /dev/ttyAMA5
+</div></code></pre>
+<h4 id="gpsdインストール">gpsdインストール</h4>
+<pre class="hljs"><code><div>sudo apt update
+sudo apt install gpsd gpsd-clients -y
+</div></code></pre>
+<ul>
+<li>/etc/default/gpsd 編集</li>
+</ul>
+<pre class="hljs"><code><div># START_DAEMON を true にする（記述があれば）
+START_DAEMON=&quot;true&quot;
+
+# USBの自動検出を無効化（UART固定にするため）
+USBAUTO=&quot;false&quot;
+
+# 使用するデバイスに /dev/ttyAMA5 を指定
+DEVICES=&quot;/dev/ttyAMA5&quot;
+
+# オプション（-n はクライアントの接続を待たずに即座にGPSデータを読み始める設定）
+GPSD_OPTIONS=&quot;-n&quot;
+</div></code></pre>
+<ul>
+<li>設定を反映させるために、gpsd サービスを再起動する。あわせて、ラズパイ起動時に自動でサービスが始まるように有効化しておく。</li>
+</ul>
+<pre class="hljs"><code><div>sudo systemctl daemon-reload
+sudo systemctl restart gpsd
+sudo systemctl enable gpsd
+</div></code></pre>
+<ul>
+<li>動作確認</li>
+</ul>
+<pre class="hljs"><code><div>cgps
+</div></code></pre>
+<h3 id="サウンドカードの設定">サウンドカードの設定</h3>
+<p>SBB03基板に搭載した TLV320AIC3104 をサウンドカードして認識させるため、デバイスツリーソースファイルを用意した。</p>
+<ul>
+<li>デバイスツリーソースファイルをコンパイル</li>
+</ul>
+<pre class="hljs"><code><div>dtc -@ -I dts -O dtb -o SBB03_tlv320aic3104.dtbo SBB03_tlv320aic3104.dts
+</div></code></pre>
+<ul>
+<li>生成した SBB03_tlv320aic3104.dtbo を /boot/overlays/ にコピー</li>
+</ul>
+<pre class="hljs"><code><div>sudo cp SBB03_tlv320aic3104.dtbo /boot/overlays/
+</div></code></pre>
+<ul>
+<li>/boot/config.txt に下記を追記して再起動</li>
+</ul>
+<pre class="hljs"><code><div>dtoverlay=SBB03_tlv320aic3104
+</div></code></pre>
+<ul>
+<li>サウンドカード名、カード番号の確認</li>
+</ul>
+<pre class="hljs"><code><div>cat /proc/asound/cards
+</div></code></pre>
+<ul>
+<li>alsamixerの設定内容一覧<br>
+(-cオプションの値はサウンドカード名かカード番号)</li>
+</ul>
+<pre class="hljs"><code><div>amixer -c tlv320aic3104so scontrols
+</div></code></pre>
+<ul>
+<li>音量設定
+dierwolf使用前に、音量設定を適切にするため、下記のようにシェルスクリプト等で設定するようにする。</li>
+</ul>
+<pre class="hljs"><code><div>#!/bin/sh
+#出力設定
+amixer -c tlv320aic3104so sset 'PCM' 100%
+amixer -c tlv320aic3104so sset 'HP DAC' 75%
+amixer -c tlv320aic3104so sset 'HP' 0
+#入力設定
+amixer -c tlv320aic3104so sset 'Left Line1L Mux' 'single-ended'
+amixer -c tlv320aic3104so sset 'Left PGA Mixer Line1L' on
+amixer -c tlv320aic3104so sset 'PGA' 60%
+</div></code></pre>
+<h3 id="direwolf-インストール">DireWolf インストール</h3>
+<p>https://www.github.com/wb2osz/direwolf
+direwolf/doc/Raspberry-Pi-APRS.pdf に基づいてインストール</p>
+<pre class="hljs"><code><div>sudo apt-get install cmake
+sudo apt-get install libasound2-dev
+sudo apt-get install libudev-dev
+sudo apt-get install pkg-config
+sudo apt-get install libavahi-client-dev
+sudo apt-get install gpiod libgpiod-dev
+</div></code></pre>
+<pre class="hljs"><code><div>cd ~
+git clone https://www.github.com/wb2osz/direwolf
+cd direwolf
+</div></code></pre>
+<pre class="hljs"><code><div>mkdir build &amp;&amp; cd build
+cmake -DUNITTEST=1 ..
+make -j
+make test
+sudo make install
+</div></code></pre>
+<pre class="hljs"><code><div>make install-conf
+</div></code></pre>
+<p>下記のコマンドで tlv320aic3104-soundcard のカード番号を確認する。</p>
+<pre class="hljs"><code><div>aplay –l 
+arecord -l
+</div></code></pre>
+<h4 id="direwolfconf-編集">direwolf.conf 編集</h4>
+<pre class="hljs"><code><div>ADEVICE  plughw:3,0　#カード番号が3の場合
+ARATE 48000         #SBB03はサンプリングレート48kHzに最適化しているので
+
+#CHANNEL 0設定(無線機は1台なので0番のみ)
+CHANNEL 0
+MYCALL JXXXXX-11    #&lt;コールサイン&gt;-&lt;ssid&gt; 11:気球、航空局、宇宙船など
+MODEM 1200          #1200bpsで運用する(無線機のマイクスピーカー端子では9600bpsは不可能)
+PTT GPIOD  gpiochip0  17    #PTT制御はGPIO17使用
+</div></code></pre>
+<p>direwolf.conf の設定で一定間隔でAPRSビーコンを送信することもできるが、
+今回は、pythonプログラムでAPRSパケットを生成し、KISSプロトコルでdirewolfを操作して送信する方法をとるため、direwolf.confでのビーコン設定はしない。</p>
+<h3 id="aprsビーコンの送出">APRSビーコンの送出</h3>
+<h4 id="aprsビーコン送出プログラム">APRSビーコン送出プログラム</h4>
+<p>space_balloon_and_kite/python/aprs ディレクトリーに、aprs_beacon.py を用意した。
+このプログラムは、無線機(IC-T10)のリモコン機能を使用して、144.660MHzと431.040MHzの2つの周波数で交互にAPRSビーコンを送出する。</p>
+<p>このプログラムを使用して正常に送信するためには、下記の要件を満たす必要がある。</p>
+<ul>
+<li>IC-T10の設定は、下記「IC-T10設定」に従うこと</li>
+<li>SBB03基板のJ4コネクターとIC-T10のマイクジャック/スピーカージャックを専用ケーブルで接続しておくこと</li>
+<li>あらかじめdirewolfを起動しておくこと</li>
+<li>サウンドカード設定スクリプト SBB03_sset.sh を実行してくおくこと(RasPi起動後毎回必要)</li>
+</ul>
+<h4 id="ic-t10設定">IC-T10設定</h4>
+<ul>
+<li>ケーブルの抜き差しをする際は電源を切っておくこと</li>
+<li>使用時は電源をオンし、スピーカーボリュームを12時の向き(中間)に回しておくこと</li>
+<li>「mic S」設定を「SimPLE」にしておくこと</li>
+<li>メモリーチャンネル M-CH0に144.660MHzを、M-CH1に431.040MHzを、それぞれ設定しておくこと</li>
+<li>メモリーチャンネルには周波数の他、モードと送信出力も記憶されるので、モードはFM、送信出力は最大(5W)にしておく</li>
+<li>MICゲイン を1(最低)に設定しておくこと</li>
+<li>タイムアウトタイマーは最も短い 1分 に設定しておくことが望ましい</li>
+<li>ロック機能を設定しておくことが望ましい(ロック中もリモコン機能は有効)</li>
+<li>PTTロックは <strong>設定しない</strong> こと</li>
+</ul>
+<h4 id="自動起動">自動起動</h4>
+<p>下記のような crontab で、起動時に自動起動することができる。</p>
+<pre class="hljs"><code><div>@reboot screen -dmS direwolf /usr/local/bin/direwolf -c /home/pi/direwolf.conf
+@reboot /home/pi/SBB03/python/SBB03_sset.sh &gt; /home/pi/SBB03/python/SBB03_sset.log 2&gt;&amp;1
+@reboot screen -dmS SBB03_py /home/pi/SBB03/python/sb-env/bin/python /home/pi/SBB03/python/aprs_beacon.py
+</div></code></pre>
+<p>ここで、ユーザー名 「pi」は、必要に応じて使用しているユーザー名に変更する。
+また、python仮想環境、スクリプト配置ディレクトリーも適宜変更する。</p>
+
+</body>
+</html>
