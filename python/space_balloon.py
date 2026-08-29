@@ -9,8 +9,8 @@ try:
     import serial
     import pynmea2
     import psutil
-    import gpsd
-    import socket
+    #import gpsd
+    #import socket
 except ImportError:
     print("[Warn] The libraries required for reading sensor data from GPIO or related interfaces have not been imported.")
 try:
@@ -431,10 +431,10 @@ class SensorWrapper:
             )
 
             #######################################################
-            if self.__mode == 5:
-                self.__direwolfImpl = DireWolfImp(
-                    self.__direwolf_interval
-                )
+            #if self.__mode == 5:
+            #    self.__direwolfImpl = DireWolfImp(
+            #        self.__direwolf_interval
+            #    )
             
         #########################################################################
         if self.__icm20948_en :
@@ -457,9 +457,9 @@ class SensorWrapper:
             print("[Info] Activate the NEO M8N GPS.")
             self.__neom8nImpl = NEOM8NImpl( self.__neom8n_port , self.__neom8n_interval )
         #########################################################################
-        if self.__gt_502gg_n_en :
-            print("[Info] Activate the GT_502GG_N GPS.")
-            self.__gt_502gg_nImpl = GT_502GG_NImpl( self.__gt_502gg_n_interval )
+        #if self.__gt_502gg_n_en :
+        #    print("[Info] Activate the GT_502GG_N GPS.")
+        #    self.__gt_502gg_nImpl = GT_502GG_NImpl( self.__gt_502gg_n_interval )
         #########################################################################
         if self.__powermonitor_en :
             print("[Info] Activate the PowerMonitor.")
@@ -475,18 +475,19 @@ class SensorWrapper:
         self.__read_args()
         signal.signal( signal.SIGINT , self.__handler )
         #######################################################################
-        if (self.__mode == 0) or (self.__mode == 5):
+        #if (self.__mode == 0) or (self.__mode == 5):
+        if (self.__mode == 0):
             print("[Info] It operates in sensor data output mode.")
             self.__setup_sensors()
             threadList = []
             try:
-                if self.__mode == 5:
-                    direwolfProcess = multiprocessing.Process( target=self.__direwolfImpl.doDireWolfImpl )
+                #if self.__mode == 5:
+                #    direwolfProcess = multiprocessing.Process( target=self.__direwolfImpl.doDireWolfImpl )
 
                 threadList.append( threading.Thread(                            target=self.__cameraModuleImpl.doCameraModuleImpl ) )
                 self.__ivk172_en       and threadList.append( threading.Thread( target=self.__ivk172Impl      .doIvk172Impl       ) )
                 self.__neom8n_en       and threadList.append( threading.Thread( target=self.__neom8nImpl      .doNeom8nImpl       ) )
-                self.__gt_502gg_n_en   and threadList.append( threading.Thread( target=self.__gt_502gg_nImpl  .doGT_502GG_NImpl   ) )
+                #self.__gt_502gg_n_en   and threadList.append( threading.Thread( target=self.__gt_502gg_nImpl  .doGT_502GG_NImpl   ) )
                 self.__bme280_en       and threadList.append( threading.Thread( target=self.__bme280Impl      .doBME280Impl       ) )
                 self.__mpu6050_en      and threadList.append( threading.Thread( target=self.__mpu6050Impl     .doMPU6050Impl      ) )
                 self.__icm20948_en     and threadList.append( threading.Thread( target=self.__icm20948Impl    .doIcm20948Impl     ) )
@@ -494,8 +495,8 @@ class SensorWrapper:
                 SensorWrapper.running.set()
                 for singleThread in threadList:
                     singleThread.start()
-                if self.__mode == 5:
-                    direwolfProcess.start()
+                #if self.__mode == 5:
+                #    direwolfProcess.start()
                 for singleThread in threadList:
                     singleThread.join()
             except Exception as e:
@@ -549,7 +550,7 @@ class DireWolfImp:
         self.__DATA_TYP       = ">"                    # Status report
         self.__MAX_STATUS_LEN = 62                     # ステータステキストの上限[バイト]
         # ---- 送信設定 ----
-        self.__MY_CALLSIGN   = "Jxxxxx-11"             # 自局コールサイン + SSID
+        self.__MY_CALLSIGN   = "JH1PYL-7"             # 自局コールサイン + SSID
         self.__APRS_TOCALL   = "APZDUT"                # 実験用 APZ??? レンジ
         self.__APRS_PATH     = ["WIDE1-1", "WIDE2-1"]  # 中継経路
         self.__DIREWOLF_HOST = "localhost"
